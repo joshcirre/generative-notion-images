@@ -71,25 +71,26 @@ export default function App() {
     : `${surface === 'pattern' ? params.mode : surface}-${params.seed}`
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden p-2 sm:p-3">
+    <div className="flex h-dvh flex-col overflow-hidden p-1.5 sm:p-3">
       <DeviceNoiseFilter />
       <DeviceBody>
         <DeviceFace>
-          <div className="flex min-h-0 flex-1 flex-col gap-2 p-3 sm:p-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 p-2 sm:p-4">
             <StatusBar top>
               <span className="font-pixel text-[11px] tracking-[0.14em] text-ink">GENERATIVE DESIGNS</span>
               <span className="hidden sm:inline">ISOMETRIC PLOTTER</span>
               <span className="ml-auto tabular-nums">{describe(params).toUpperCase()}</span>
               <span className="tabular-nums">{scene.faces.toLocaleString()} FACES</span>
-              <span className="tabular-nums">PEAK {scene.peak}</span>
+              <span className="hidden tabular-nums sm:inline">PEAK {scene.peak}</span>
             </StatusBar>
 
-            <div className="flex min-h-0 flex-1 gap-3">
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+            <div className="flex min-h-0 flex-1 flex-col gap-2 wide:flex-row wide:gap-3">
+              {/* Artwork keeps its natural height on mobile and flexes on desktop. */}
+              <div className="flex min-w-0 shrink-0 flex-col gap-2 wide:min-h-0 wide:flex-1">
             {/* The artwork letterboxes itself inside the screen via the SVG's
                 own preserveAspectRatio, so the panel fits any viewport without
                 measuring anything. */}
-            <div className="flex min-h-0 flex-1 items-center">
+            <div className="flex max-h-[34dvh] items-center wide:max-h-none wide:min-h-0 wide:flex-1">
               <DeviceScreen style={{ aspectRatio: String(params.aspect) }}>
                 <div
                   className="checker h-full w-full [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
@@ -99,7 +100,7 @@ export default function App() {
             </div>
 
             <div className="flex shrink-0 flex-wrap items-end gap-2">
-              <div className="w-56">
+              <div className="w-full max-w-56 sm:w-56">
                 <Segmented
                   label="Surface"
                   value={surface}
@@ -145,12 +146,13 @@ export default function App() {
 
               </div>
 
-              <DeviceGrille vertical />
+              <div className="hidden wide:flex"><DeviceGrille vertical /></div>
+              <div className="wide:hidden"><DeviceGrille /></div>
 
               {/* Racks live beside the artwork rather than under it, so the
                   preview keeps most of the viewport. */}
-              <div className="grid w-[min(560px,46%)] shrink-0 grid-cols-2 gap-2">
-                <div className="flex min-h-0 flex-col gap-2">
+              <div className="grid min-h-0 flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto overscroll-contain sm:grid-cols-2 wide:w-[min(560px,46%)] wide:flex-none">
+                <div className="flex min-w-0 flex-col gap-2">
               {/* ---- source ------------------------------------------------ */}
               {isLetters ? (
                 <Rack label="Type">
@@ -257,7 +259,7 @@ export default function App() {
               </Rack>
 
                 </div>
-                <div className="flex min-h-0 flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2">
               {/* ---- color ------------------------------------------------- */}
               <Rack label="Color">
                 <div className="flex flex-wrap gap-1">
@@ -328,9 +330,11 @@ export default function App() {
 
             <StatusBar>
               <CopyLine label="URL" value={window.location.href} />
-              <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
+              <span className="hidden min-w-0 sm:flex">
+                <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
+              </span>
               <a
-                className="ml-auto shrink-0 hover:text-primary"
+                className="ml-auto hidden shrink-0 hover:text-primary md:inline"
                 href="https://github.com/wking-io/patterns-for-creativity"
                 target="_blank"
                 rel="noreferrer"

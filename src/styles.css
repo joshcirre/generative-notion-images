@@ -5,6 +5,12 @@
 @import "@fontsource/jetbrains-mono/latin-500.css";
 @import "@fontsource/jetbrains-mono/latin-700.css";
 
+/* Side-by-side needs horizontal room, which is not the same as a wide
+   breakpoint: a landscape phone is short and wide, a portrait tablet is the
+   reverse. One condition, not a comma-separated list — Tailwind compiles a
+   media list into an invalid selector and silently drops the first branch. */
+@custom-variant wide (@media (min-aspect-ratio: 1/1) and (min-width: 640px));
+
 @theme {
   --font-pixel: "Silkscreen", ui-monospace, monospace;
   --font-device: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;

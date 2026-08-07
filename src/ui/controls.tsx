@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 // Control language from the synth device in Will King's Patterns for Creativity
 // (github.com/wking-io/patterns-for-creativity): a muted mono label over a
@@ -29,8 +29,7 @@ export function Scrub({
 }) {
   const [dragging, setDragging] = useState(false)
   const [draft, setDraft] = useState<string | null>(null)
-  const startRef = useRef(value)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const drag = useRef<{ id: number; x: number; from: number } | null>(null)
   const id = `p-${label.toLowerCase().replace(/\W+/g, '-')}`
   const dp = decimals(step)
 
@@ -39,32 +38,28 @@ export function Scrub({
     [max, min, step],
   )
 
-  useEffect(() => {
-    if (!dragging) return
+  // Pointer events rather than mouse events, so the handle scrubs under a
+  // finger as well as a cursor. Pointer capture keeps the drag alive outside
+  // the element, which is what the old document-level listeners were for.
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    drag.current = { id: e.pointerId, x: e.clientX, from: value }
+    setDragging(true)
+  }
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current
+    if (!d || d.id !== e.pointerId) return
     // A full sweep of the range takes about 220px of travel, so every control
     // feels the same regardless of the units behind it.
-    const perPixel = (max - min) / 220
-    const onMove = (e: MouseEvent) => {
-      startRef.current = clamp(startRef.current + e.movementX * perPixel, min, max)
-      onChange(snap(startRef.current))
-    }
-    const onUp = () => {
-      setDragging(false)
-      if (document.pointerLockElement) document.exitPointerLock()
-    }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-    return () => {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-    }
-  }, [dragging, max, min, onChange, snap])
+    onChange(snap(d.from + (e.clientX - d.x) * ((max - min) / 220)))
+  }
 
-  const beginDrag = (e: React.MouseEvent) => {
-    e.preventDefault()
-    startRef.current = value
-    setDragging(true)
-    void (e.currentTarget as HTMLElement).requestPointerLock?.()
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (drag.current?.id !== e.pointerId) return
+    drag.current = null
+    setDragging(false)
   }
 
   return (
@@ -76,11 +71,10 @@ export function Scrub({
         }`}
       >
         <input
-          ref={inputRef}
           id={id}
           type="text"
           inputMode="decimal"
-          className="w-full min-w-0 flex-1 bg-transparent px-1.5 py-0.5 font-device text-ink focus:outline-none"
+          className="w-full min-w-0 flex-1 bg-transparent px-1.5 py-0.5 font-device text-[16px] text-ink focus:outline-none sm:text-[11px]"
           value={draft ?? value.toFixed(dp)}
           onChange={e => {
             setDraft(e.target.value)
@@ -96,9 +90,14 @@ export function Scrub({
           }}
         />
         <div
-          onMouseDown={beginDrag}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
           title="Drag to scrub"
-          className={`flex cursor-ew-resize items-center border-l px-1.5 py-0.5 font-device text-[10px] ${
+          // Without this a touch drag scrolls the panel instead of scrubbing.
+          style={{ touchAction: 'none' }}
+          className={`flex cursor-ew-resize items-center border-l px-1.5 py-0.5 font-device text-[10px] sm:px-1.5 ${
             dragging
               ? 'border-primary bg-primary text-white'
               : 'border-sand-7 text-muted group-focus-within/field:border-primary group-focus-within/field:bg-primary group-focus-within/field:text-white'
@@ -173,7 +172,7 @@ export function Segmented<T extends string>({
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            className={`px-1 py-0.5 font-device text-[10px] capitalize transition-colors ${
+            className={`min-w-0 truncate px-1 py-0.5 font-device text-[10px] capitalize transition-colors ${
               value === opt ? 'bg-primary text-white' : 'bg-white text-muted hover:bg-sand-3'
             }`}
           >
@@ -210,7 +209,7 @@ export function TextField({
         spellCheck={false}
         autoComplete="off"
         onChange={e => onChange(e.target.value)}
-        className="border border-sand-7 bg-white px-2 py-1.5 font-device text-sm font-bold tracking-widest text-ink uppercase focus:border-primary focus:outline-none"
+        className="border border-sand-7 bg-white px-2 py-1.5 font-device text-[16px] font-bold tracking-widest text-ink uppercase focus:border-primary focus:outline-none sm:text-sm"
       />
     </div>
   )

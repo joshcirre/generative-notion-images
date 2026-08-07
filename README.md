@@ -19,7 +19,11 @@ light, material, palette, projection, canvas, export — is shared between them.
 - **Text** — the words themselves become the terrain profile. No letterforms.
 - **Voice** — record from the microphone and the envelope becomes the terrain.
 
-The panel is sized to the viewport and never scrolls.
+The panel is sized to the viewport and never scrolls. It lays out side by side
+when the viewport has horizontal room — landscape and at least 640px — and
+stacks otherwise, so a portrait phone or tablet puts the artwork on top and
+scrolls only the controls. Value handles scrub under a finger as well as a
+cursor.
 
 Every design is a pure function of its parameters. The same seed always returns
 the same image, which is why a URL and a CLI flag set can both reproduce
