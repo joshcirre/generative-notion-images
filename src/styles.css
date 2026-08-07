@@ -1,0 +1,102 @@
+@import "tailwindcss";
+@import "@fontsource/silkscreen/latin-400.css";
+@import "@fontsource/silkscreen/latin-700.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-500.css";
+@import "@fontsource/jetbrains-mono/latin-700.css";
+
+@theme {
+  --font-pixel: "Silkscreen", ui-monospace, monospace;
+  --font-device: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* laravel.com's sand scale and brand red, from its resources/css/app.css.
+     Red is an accent — buttons and focus — over a sand and white chassis,
+     which is how the site itself uses it. */
+  --color-sand-1: #fdfdfc;
+  --color-sand-2: #f9f9f8;
+  --color-sand-3: #f1f0ef;
+  --color-sand-4: #e9e8e6;
+  --color-sand-5: #e2e1de;
+  --color-sand-6: #dad9d6;
+  --color-sand-7: #cfceca;
+  --color-sand-8: #bcbbb5;
+  --color-sand-9: #8d8d86;
+
+  --color-chassis: var(--color-sand-2);
+  --color-chassis-deep: var(--color-sand-4);
+  --color-layer: var(--color-sand-1);
+  --color-ink: #21201c;      /* --color-sand-light-12 */
+  --color-muted: #63635e;    /* --color-sand-light-11 */
+  --color-primary: #f53003;  /* --color-laravel-red */
+  --color-primary-deep: #c42602;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  /* The panel is sized to the viewport; nothing should ever scroll. */
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-sand-5);
+  color: var(--color-ink);
+  font-family: var(--font-device);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The chassis and screen treatments are lifted from the synth device in Will
+   King's Patterns for Creativity (github.com/wking-io/patterns-for-creativity):
+   a noise-textured amber face with opposing bevels, and a dark inset screen
+   under a diagonal glare. */
+
+.device-noise {
+  filter: url(#device-noise);
+}
+
+.bg-glare {
+  background: linear-gradient(
+    122deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0) 42%,
+    rgba(255, 255, 255, 0.055) 46%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.03) 54%,
+    rgba(255, 255, 255, 0) 58%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* Checkerboard behind the artwork, so a transparent backdrop reads as empty. */
+.checker {
+  background-color: #0d0b0a;
+  background-image:
+    linear-gradient(45deg, #1b1715 25%, transparent 25%, transparent 75%, #1b1715 75%),
+    linear-gradient(45deg, #1b1715 25%, transparent 25%, transparent 75%, #1b1715 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+/* Notion crop guides — the vertical slice a cover keeps as the window widens,
+   and the page icon that floats over its bottom-left. */
+.crop-band {
+  outline: 1px dashed rgba(255, 255, 255, 0.45);
+  outline-offset: -1px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+::selection {
+  background: var(--color-primary);
+  color: #fff;
+}

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Block Letters</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f4f2;
+    color: #17150f;
+  }
+  .app {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 24px 48px;
+  }
+  header { margin-bottom: 20px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: #8a857c; font-size: 14px; }
+  header a { color: #d9411e; font-weight: 600; text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+  .layout {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+  .panel {
+    background: #fff;
+    border: 1px solid #e7e4de;
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .panel + .panel { margin-top: 16px; }
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field > label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #8a857c;
+    margin-bottom: 7px;
+  }
+  input[type="text"] {
+    width: 100%;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 9px 12px;
+    border: 1px solid #ddd9d1;
+    border-radius: 9px;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: #d9411e; }
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch {
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,0,0,0.12);
+    cursor: pointer;
+    padding: 0;
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .facerow { display: flex; gap: 10px; }
+  .facerow > div { flex: 1; text-align: center; }
+  .facerow span { display: block; font-size: 11px; color: #8a857c; margin-top: 4px; }
+  input[type="color"] {
+    width: 100%; height: 34px;
+    padding: 2px;
+    border: 1px solid #ddd9d1;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+  }
+  input[type="range"] { width: 100%; accent-color: #d9411e; }
+  .rangeval { font-size: 12px; color: #8a857c; float: right; font-weight: 500; }
+  .seg { display: flex; border: 1px solid #ddd9d1; border-radius: 9px; overflow: hidden; }
+  .seg button {
+    flex: 1;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    background: #fff;
+    cursor: pointer;
+    color: #6d685f;
+  }
+  .seg button.on { background: #17150f; color: #fff; }
+  .checkrow { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 10px; }
+  .checkrow input { accent-color: #d9411e; }
+
+  .previewwrap { position: sticky; top: 24px; }
+  .preview {
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid #e7e4de;
+  }
+  .preview.checker {
+    background-image:
+      linear-gradient(45deg, #e9e6e0 25%, transparent 25%, transparent 75%, #e9e6e0 75%),
+      linear-gradient(45deg, #e9e6e0 25%, transparent 25%, transparent 75%, #e9e6e0 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 12px 12px;
+    background-color: #f8f7f5;
+  }
+  .preview svg { width: 100%; height: 100%; display: block; }
+  .preview .empty { color: #b5b0a6; font-size: 14px; }
+
+  .exportrow { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .btn {
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 9px;
+    border: 1px solid #ddd9d1;
+    background: #fff;
+    cursor: pointer;
+    color: #17150f;
+  }
+  .btn:hover { background: #f5f4f2; }
+  .btn.primary { background: #17150f; color: #fff; border-color: #17150f; }
+  .btn.primary:hover { background: #33302a; }
+
+  .editorpanel h3 {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: #8a857c; margin: 0 0 10px;
+  }
+  .editorhead { display: flex; align-items: baseline; justify-content: space-between; }
+  .editorhead a { font-size: 12px; color: #d9411e; cursor: pointer; font-weight: 600; visibility: hidden; }
+  .editorhead a.show { visibility: visible; }
+  #editorgrid { display: grid; gap: 4px; width: max-content; }
+  #editorgrid button {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1px solid #eceae5;
+    background: #f5f4f2;
+    cursor: pointer;
+    padding: 0;
+  }
+  #editorgrid button.fill { border-color: rgba(0,0,0,0.15); }
+  .editorhint { font-size: 12.5px; color: #b5b0a6; margin: 4px 0 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Block Letters</h1>
+    <p>Isometric stacked-block letters &mdash; type a letter, tweak, export a PNG.</p>
+  </header>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <div class="field">
+          <label for="text">Text</label>
+          <input type="text" id="text" value="M" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Tilt</label>
+          <div class="seg" id="dirseg">
+            <button data-dir="rise" class="on">Rise &nearr;</button>
+            <button data-dir="fall">Fall &searr;</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Block depth <span class="rangeval" id="depthval">2&times;</span></label>
+          <input type="range" id="depth" min="1" max="3" step="0.25" value="2">
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="field">
+          <label>Color presets</label>
+          <div class="swatches" id="swatches"></div>
+        </div>
+        <div class="field">
+          <label>Faces (top / left / right)</label>
+          <div class="facerow">
+            <div><input type="color" id="ctop" value="#e86a50"><span>Top</span></div>
+            <div><input type="color" id="cleft" value="#a93016"><span>Left</span></div>
+            <div><input type="color" id="cright" value="#d9411e"><span>Right</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Background</label>
+          <input type="color" id="cbg" value="#ffffff">
+          <div class="checkrow">
+            <input type="checkbox" id="transparent" checked>
+            <label for="transparent" style="cursor:pointer">Transparent background</label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Seams <span class="rangeval" id="seamval">1.5</span></label>
+          <input type="range" id="seam" min="0" max="5" step="0.5" value="1.5">
+        </div>
+        <div class="field">
+          <label>Padding <span class="rangeval" id="padval">10%</span></label>
+          <input type="range" id="pad" min="0" max="25" step="1" value="10">
+        </div>
+      </div>
+
+      <div class="panel editorpanel">
+        <div class="editorhead">
+          <h3>Block editor</h3>
+          <a id="resetcustom">Reset</a>
+        </div>
+        <div id="editorgrid"></div>
+        <p class="editorhint" id="editorhint"></p>
+      </div>
+    </div>
+
+    <div class="previewwrap">
+      <div class="preview" id="preview"></div>
+      <div class="exportrow">
+        <button class="btn primary" data-size="256">PNG 256</button>
+        <button class="btn primary" data-size="512">PNG 512</button>
+        <button class="btn primary" data-size="1024">PNG 1024</button>
+        <button class="btn" id="dlsvg">SVG</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="iso.js"></script>
+<script>
+const { FONT, GLYPH_W, GLYPH_H, EDGE, HW, HH, PRESETS } = ISO;
+
+// ---------- state ----------
+const state = {
+  text: 'M',
+  dir: 'rise',
+  top: '#e86a50',
+  left: '#a93016',
+  right: '#d9411e',
+  bg: '#ffffff',
+  transparent: true,
+  seam: 1.5,
+  pad: 10,
+  depth: 2, // block length front-to-back, in cube units
+  custom: null, // Set of "x,y" strings overriding a single glyph
+};
+let lastSVG = '';
+
+// ---------- cells ----------
+// returns [{c, z}] with c = column, z = height from the ground (0 = bottom row)
+function buildCells() {
+  const cells = [];
+  const chars = [...state.text.toUpperCase()];
+  const single = editableChar();
+  let col = 0;
+  for (const ch of chars) {
+    if (ch === ' ') { col += 3; continue; }
+    const glyph = FONT[ch];
+    if (!glyph) continue;
+    for (let y = 0; y < GLYPH_H; y++) {
+      for (let x = 0; x < GLYPH_W; x++) {
+        const on = (single && state.custom) ? state.custom.has(x + ',' + y) : glyph[y][x] === 'X';
+        if (on) cells.push({ c: col + x, z: GLYPH_H - 1 - y });
+      }
+    }
+    col += GLYPH_W + 1;
+  }
+  return cells;
+}
+// the single editable character, or null when text isn't exactly one glyph
+function editableChar() {
+  const chars = [...state.text.toUpperCase()].filter(ch => FONT[ch]);
+  return chars.length === 1 ? chars[0] : null;
+}
+
+// ---------- isometric rendering ----------
+function render() {
+  const cells = buildCells();
+  const preview = document.getElementById('preview');
+  preview.classList.toggle('checker', state.transparent);
+
+  if (!cells.length) {
+    preview.innerHTML = '<span class="empty">Type a letter (A&ndash;Z, 0&ndash;9)</span>';
+    lastSVG = '';
+    renderEditor();
+    return;
+  }
+
+  // Anchor is the bottom corner of each block's top face. The letter runs along
+  // one horizontal axis; block depth extends along the other. On screen that
+  // means one top edge spans 1 unit and the other spans `depth` units.
+  const { dl, dr, riseSign } = ISO.extents(state.dir, state.depth);
+  const anchor = ({ c, z }) => [c * HW, riseSign * c * HH - z * EDGE];
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const cell of cells) {
+    const b = ISO.blockBounds(...anchor(cell), dl, dr);
+    minX = Math.min(minX, b.minX); maxX = Math.max(maxX, b.maxX);
+    minY = Math.min(minY, b.minY); maxY = Math.max(maxY, b.maxY);
+  }
+
+  // back-to-front: far columns first, bottom cubes before the ones stacked on them
+  const order = [...cells].sort((a, b) =>
+    state.dir === 'rise' ? (b.c - a.c) || (a.z - b.z) : (a.c - b.c) || (a.z - b.z)
+  );
+
+  const colors = { top: state.top, left: state.left, right: state.right };
+  const polys = order.flatMap(cell => ISO.blockFaces(...anchor(cell), dl, dr, colors));
+  const shapes = ISO.paintPolys(polys, {
+    seam: state.seam,
+    seamColor: state.transparent ? null : state.bg,
+  });
+
+  const w = maxX - minX, h = maxY - minY;
+  const side = Math.max(w, h) * (1 + state.pad / 50);
+  const vx = minX - (side - w) / 2;
+  const vy = minY - (side - h) / 2;
+  const bgRect = state.transparent ? '' :
+    `<rect x="${vx}" y="${vy}" width="${side}" height="${side}" fill="${state.bg}"/>`;
+
+  lastSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx} ${vy} ${side} ${side}">${bgRect}${shapes}</svg>`;
+  preview.innerHTML = lastSVG;
+  renderEditor();
+}
+
+// ---------- block editor ----------
+function renderEditor() {
+  const grid = document.getElementById('editorgrid');
+  const hint = document.getElementById('editorhint');
+  const reset = document.getElementById('resetcustom');
+  const single = editableChar();
+
+  reset.classList.toggle('show', !!state.custom);
+  if (!single) {
+    grid.innerHTML = '';
+    grid.style.display = 'none';
+    hint.textContent = 'Click-to-edit works when the text is a single character.';
+    return;
+  }
+  grid.style.display = 'grid';
+  hint.textContent = 'Click blocks to toggle them.';
+  grid.style.gridTemplateColumns = `repeat(${GLYPH_W}, 30px)`;
+
+  const glyph = FONT[single];
+  let html = '';
+  for (let y = 0; y < GLYPH_H; y++) {
+    for (let x = 0; x < GLYPH_W; x++) {
+      const on = state.custom ? state.custom.has(x + ',' + y) : glyph[y][x] === 'X';
+      html += `<button data-x="${x}" data-y="${y}" class="${on ? 'fill' : ''}"` +
+              (on ? ` style="background:${state.right}"` : '') + `></button>`;
+    }
+  }
+  grid.innerHTML = html;
+}
+
+document.getElementById('editorgrid').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  const single = editableChar();
+  if (!btn || !single) return;
+  if (!state.custom) {
+    state.custom = new Set();
+    const glyph = FONT[single];
+    for (let y = 0; y < GLYPH_H; y++)
+      for (let x = 0; x < GLYPH_W; x++)
+        if (glyph[y][x] === 'X') state.custom.add(x + ',' + y);
+  }
+  const key = btn.dataset.x + ',' + btn.dataset.y;
+  state.custom.has(key) ? state.custom.delete(key) : state.custom.add(key);
+  render();
+});
+
+document.getElementById('resetcustom').addEventListener('click', () => {
+  state.custom = null;
+  render();
+});
+
+// ---------- controls ----------
+const $ = id => document.getElementById(id);
+
+$('text').addEventListener('input', e => {
+  state.text = e.target.value;
+  state.custom = null;
+  render();
+});
+
+document.querySelectorAll('#dirseg button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.dir = btn.dataset.dir;
+    document.querySelectorAll('#dirseg button').forEach(b => b.classList.toggle('on', b === btn));
+    render();
+  });
+});
+
+const swatches = $('swatches');
+for (const color of PRESETS) {
+  const b = document.createElement('button');
+  b.className = 'swatch';
+  b.style.background = color;
+  b.title = color;
+  b.addEventListener('click', () => {
+    const shades = ISO.shadesFromBase(color);
+    state.top = shades.top; state.left = shades.left; state.right = shades.right;
+    $('ctop').value = shades.top; $('cleft').value = shades.left; $('cright').value = shades.right;
+    render();
+  });
+  swatches.appendChild(b);
+}
+
+for (const [id, key] of [['ctop','top'], ['cleft','left'], ['cright','right'], ['cbg','bg']]) {
+  $(id).addEventListener('input', e => { state[key] = e.target.value; render(); });
+}
+$('transparent').addEventListener('change', e => { state.transparent = e.target.checked; render(); });
+$('seam').addEventListener('input', e => {
+  state.seam = parseFloat(e.target.value);
+  $('seamval').textContent = e.target.value;
+  render();
+});
+$('pad').addEventListener('input', e => {
+  state.pad = parseInt(e.target.value, 10);
+  $('padval').textContent = e.target.value + '%';
+  render();
+});
+$('depth').addEventListener('input', e => {
+  state.depth = parseFloat(e.target.value);
+  $('depthval').innerHTML = e.target.value + '&times;';
+  render();
+});
+
+// ---------- export ----------
+function filename(ext, size) {
+  const base = state.text.trim().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'blocks';
+  return `block-${base.toLowerCase()}${size ? '-' + size : ''}.${ext}`;
+}
+document.querySelectorAll('.exportrow [data-size]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (!lastSVG) return;
+    const size = parseInt(btn.dataset.size, 10);
+    ISO.exportPNG(lastSVG, size, size, filename('png', size));
+  });
+});
+$('dlsvg').addEventListener('click', () => {
+  if (lastSVG) ISO.exportSVG(lastSVG, filename('svg'));
+});
+
+render();
+</script>
+</body>
+</html>
