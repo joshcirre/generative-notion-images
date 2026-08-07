@@ -112,20 +112,22 @@ results look deliberate instead of noisy.
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the dev server |
-| `npm run build` | Production build into `dist/` |
+| `npm run build` | Production build into `public/` |
 | `npm run check` | Type-check |
 | `npm run generate` | Render designs from the command line |
-| `npm start` | Serve the built `dist/` (what hosts run after `npm run build`) |
 
 ## Deploying
 
-The app is a static SPA — there is no backend. Hosts that boot Node apps expect
-`npm start` to listen on `$PORT`, so `server.js` serves `dist/` and nothing
-else. It has no dependencies on purpose: platforms routinely prune
-devDependencies before boot, which would take Vite (and `vite preview`) with it.
+The app is a static SPA, but Laravel Cloud only deploys PHP applications — it
+serves a `public/` document root and boots PHP, with no static-site or Node
+process type. So the build targets `public/`, and `static/index.php` is copied
+in beside it to answer anything that isn't a built asset with the SPA shell.
 
-Build with `npm run build`, start with `npm start`. `PORT`, `HOST` and
-`STATIC_ROOT` are all overridable.
+Vite empties `public/` on every build, which is why the PHP file lives in
+`static/` (Vite's `publicDir`) rather than in `public/` itself.
+
+Cloud's build command is `npm ci --audit false && npm run build`; no deploy
+command is needed.
 
 ## Generating outside the browser
 
