@@ -115,6 +115,17 @@ results look deliberate instead of noisy.
 | `npm run build` | Production build into `dist/` |
 | `npm run check` | Type-check |
 | `npm run generate` | Render designs from the command line |
+| `npm start` | Serve the built `dist/` (what hosts run after `npm run build`) |
+
+## Deploying
+
+The app is a static SPA — there is no backend. Hosts that boot Node apps expect
+`npm start` to listen on `$PORT`, so `server.js` serves `dist/` and nothing
+else. It has no dependencies on purpose: platforms routinely prune
+devDependencies before boot, which would take Vite (and `vite preview`) with it.
+
+Build with `npm run build`, start with `npm start`. `PORT`, `HOST` and
+`STATIC_ROOT` are all overridable.
 
 ## Generating outside the browser
 
