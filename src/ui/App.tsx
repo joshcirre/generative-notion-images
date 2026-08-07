@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  BACKDROPS, BASELINES, GLYPH_SOURCES, MODES, PALETTES, RAMPS, RUNS,
+  BACKDROPS, BASELINES, GLYPH_SOURCES, MAX_TEXT, MODES, PALETTES, RAMPS, RUNS,
   SEAMS, SHAPES, SIGNAL_MODES, SURFACES, SYMMETRIES,
   buildScene, fromQuery, generateMask, glyphMask, normalize, preset, randomize,
   soleGlyph, surfacePreset, toQuery, tint,
@@ -165,12 +165,21 @@ export default function App() {
                       </p>
                     </>
                   ) : (
-                    <TextField label="Text" value={params.text} onChange={v => set('text', v)} placeholder="A–Z 0–9" maxLength={12} />
+                    <TextField label="Text" value={params.text} onChange={v => set('text', v)} placeholder="A–Z 0–9" maxLength={MAX_TEXT} />
                   )}
                   <div className="grid grid-cols-2 gap-2">
                     <Segmented label="Baseline" value={params.baseline} options={BASELINES} onChange={v => set('baseline', v)} />
                     <Segmented label="Run" value={params.run} options={RUNS} onChange={v => set('run', v)} />
                   </div>
+                  {/* Grid sends the whole word up one axis, so a phrase becomes a
+                      long thin diagonal that has to shrink to fit. Worth saying
+                      out loud rather than letting it look broken. */}
+                  {params.baseline === 'grid' && params.text.trim().length > 3 ? (
+                    <p className="font-device text-[10px] leading-relaxed text-primary">
+                      Grid runs the word up one axis — long text becomes a thin
+                      diagonal. Use Flat to fill a header.
+                    </p>
+                  ) : null}
                   <div className="grid grid-cols-3 gap-2">
                     <Scrub label="Depth" value={params.depth} onChange={v => set('depth', v)} min={1} max={5} />
                     <Scrub label="Track" value={params.tracking} onChange={v => set('tracking', v)} min={0} max={6} />
@@ -196,7 +205,7 @@ export default function App() {
                     <VoicePanel mic={mic} hasSignal={!!params.signal} />
                   ) : (
                     <>
-                      <TextField label="Source text" value={params.text} onChange={v => set('text', v)} maxLength={12} />
+                      <TextField label="Source text" value={params.text} onChange={v => set('text', v)} maxLength={MAX_TEXT} />
                       <p className="font-device text-[10px] leading-relaxed text-muted">
                         The words become the profile. Same text, same design — and
                         similar text lands somewhere similar.
@@ -285,13 +294,20 @@ export default function App() {
 
               {/* ---- canvas ------------------------------------------------ */}
               <Rack label="Canvas">
+                {/* Named for what Notion calls them rather than by ratio. Other
+                    ratios stay reachable through the URL and the CLI. */}
                 <Segmented
-                  label="Aspect"
-                  value={String(params.aspect)}
-                  options={['1', '2.5', '3', '4'] as const}
-                  onChange={v => set('aspect', Number(v))}
-                  columns={4}
+                  label="Format"
+                  value={params.aspect === 1 ? 'icon' : 'header'}
+                  options={['header', 'icon'] as const}
+                  labels={{ header: 'Header', icon: 'Icon' }}
+                  onChange={v => set('aspect', v === 'icon' ? 1 : 2.5)}
                 />
+                <p className="font-device text-[10px] leading-relaxed text-muted">
+                  {params.aspect === 1
+                    ? 'Page icon — square. Exports 512 / 1024 / 2048.'
+                    : `Page cover — ${params.aspect}:1. Exports 1500×${Math.round(1500 / params.aspect)}.`}
+                </p>
                 <Segmented label="Backdrop" value={params.backdrop} options={BACKDROPS} onChange={v => set('backdrop', v)} columns={3} />
                 <div className="grid grid-cols-2 gap-2">
                   <ColorField label="BG from" value={params.bg1} onChange={v => set('bg1', v)} />

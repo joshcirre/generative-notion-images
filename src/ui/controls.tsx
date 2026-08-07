@@ -147,13 +147,15 @@ export function BracketSlider({
 }
 
 export function Segmented<T extends string>({
-  label, value, options, onChange, columns,
+  label, value, options, onChange, columns, labels,
 }: {
   label?: string
   value: T
   options: readonly T[]
   onChange: (v: T) => void
   columns?: number
+  /** Display text, when the underlying value isn't what you want to read. */
+  labels?: Partial<Record<T, string>>
 }) {
   const cols = columns ?? options.length
   // Pad the last row so a partial row doesn't leave the chassis showing through
@@ -175,7 +177,7 @@ export function Segmented<T extends string>({
               value === opt ? 'bg-primary text-white' : 'bg-white text-muted hover:bg-sand-3'
             }`}
           >
-            {opt}
+            {labels?.[opt] ?? opt}
           </button>
         ))}
         {Array.from({ length: fillers }, (_, i) => (
@@ -292,15 +294,26 @@ export function Toggle({
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex items-center gap-2 self-start font-device text-[10px] tracking-wide text-muted uppercase"
+      // Same border and padding as Button so it sits on the same baseline as
+      // the rest of the row. No `self-start`: that fought the row's `items-end`
+      // and floated this control above everything beside it.
+      className="flex items-center gap-2 border border-sand-7 bg-white px-2.5 py-1.5 font-device text-[10px] tracking-wide text-ink uppercase transition-colors hover:bg-sand-3"
     >
       <span
-        className={`grid size-3.5 place-items-center border ${
+        className={`flex size-3.5 shrink-0 items-center justify-center border ${
           checked ? 'border-primary bg-primary text-white' : 'border-sand-7 bg-white'
         }`}
       >
-        {checked ? '✕' : ''}
+        {/* Drawn rather than typed: a glyph centres on the font's metrics, and
+            JetBrains Mono has no ✕ to centre in the first place. */}
+        {checked ? (
+          <svg viewBox="0 0 10 10" className="size-2.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+            <path d="M1.8 5.2 4.1 7.5 8.2 2.9" strokeLinecap="square" />
+          </svg>
+        ) : null}
       </span>
       {label}
     </button>

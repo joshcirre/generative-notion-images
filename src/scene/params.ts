@@ -1,5 +1,5 @@
 import {
-  DEFAULTS, ENUMS, LIMITS, MODE_PRESETS, MODES, RAMPS, SHAPES, STRING_KEYS,
+  DEFAULTS, ENUMS, LIMITS, MAX_TEXT, MODE_PRESETS, MODES, RAMPS, SHAPES, STRING_KEYS,
   SURFACE_PRESETS,
   type Mode, type Params, type Surface,
 } from './types'
@@ -33,7 +33,7 @@ export function normalize(input: Partial<Record<keyof Params, unknown>>): Params
       ;(out as Record<string, unknown>)[k] = Math.min(hi, Math.max(lo, n))
     }
   }
-  out.text = String(out.text).slice(0, 12)
+  out.text = String(out.text).slice(0, MAX_TEXT)
   out.custom = isValidMask(out.custom) ? out.custom : ''
   out.signal = isValidSignal(out.signal) ? out.signal : ''
   out.depth = Math.round(out.depth)

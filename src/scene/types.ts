@@ -1,6 +1,9 @@
 // The full parameter surface of a generated design. Everything a scene needs
 // lives here — the UI, the URL, and the CLI all speak this one shape.
 
+// Long enough to fill a header with a phrase, not just a monogram.
+export const MAX_TEXT = 48
+
 export const SURFACES = ['pattern', 'letters', 'text', 'voice'] as const
 export const RUNS = ['rise', 'fall'] as const
 export const BASELINES = ['grid', 'flat'] as const

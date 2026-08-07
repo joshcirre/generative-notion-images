@@ -50,8 +50,12 @@ layouts:
 - `flat` — each glyph drops onto a shared screen baseline while staying
   isometric. Use this for wide wordmarks.
 
-`run` picks whether it climbs (`rise`) or descends (`fall`). Set the canvas
-aspect to 1:1 for an icon and the exports switch to 512 / 1024 / 2048.
+`run` picks whether it climbs (`rise`) or descends (`fall`). Text runs to 48
+characters, so `flat` can fill a header with a whole phrase.
+
+The canvas is set by **Format** — `Header` (2.5:1, Notion's cover ratio, exports
+1500×600) or `Icon` (1:1, exports 512 / 1024 / 2048). Other ratios stay
+reachable via `aspect` in the URL or on the CLI.
 
 Set **Glyph** to `generated` and the mark comes from the seed instead of the
 keyboard — mirrored or quarter-symmetric, on the same 5×7 grid, so you can
@@ -101,7 +105,8 @@ Grouped the way the panel groups them.
 - **Color** — 12 ramps, palette mode (`ramp` / `duotone` / `banded` / `scatter`),
   ground / mid / peak stops, ramp curve, hue drift, saturation, light angle,
   face contrast
-- **Canvas** — aspect, backdrop mode and gradient angle, inset, frame, nudge
+- **Canvas** — format (header / icon), backdrop mode and gradient angle,
+  inset, frame, nudge
 
 `Shuffle everything` rolls a whole design. It starts from the composition's own
 preset and wanders around it rather than rolling every knob uniformly, so the
