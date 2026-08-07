@@ -118,16 +118,20 @@ results look deliberate instead of noisy.
 
 ## Deploying
 
-The app is a static SPA, but Laravel Cloud only deploys PHP applications — it
-serves a `public/` document root and boots PHP, with no static-site or Node
-process type. So the build targets `public/`, and `static/index.php` is copied
-in beside it to answer anything that isn't a built asset with the SPA shell.
+The app is a static SPA. Laravel Cloud boots it with `npm start` and puts nginx
+in front, so `server.js` is the web server: it listens on `$PORT` and serves the
+build in `public/`. It has no dependencies on purpose — devDependencies are
+pruned before boot, which would take Vite (and `vite preview`) with it.
 
-Vite empties `public/` on every build, which is why the PHP file lives in
-`static/` (Vite's `publicDir`) rather than in `public/` itself.
+Two things keep it from dying quietly behind the proxy:
+
+- **Signals.** Node terminates on `SIGHUP` and `SIGUSR2` by default. Both are
+  ignored; only `SIGTERM` and `SIGINT` shut the server down.
+- **A missing build answers 503** rather than exiting. Exiting would crash-loop
+  and report only as "app crashing", with the actual reason nowhere visible.
 
 Cloud's build command is `npm ci --audit false && npm run build`; no deploy
-command is needed.
+command is needed. `PORT`, `HOST` and `STATIC_ROOT` are all overridable.
 
 ## Generating outside the browser
 
