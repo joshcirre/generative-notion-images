@@ -13,7 +13,11 @@ import { extname, join, resolve, sep } from 'node:path'
 
 const ROOT = resolve(process.env.STATIC_ROOT ?? 'public')
 const PORT = Number(process.env.PORT ?? 8080)
-const HOST = process.env.HOST ?? '0.0.0.0'
+// Deliberately unset by default. Binding '0.0.0.0' listens on IPv4 only, so a
+// health probe to localhost:$PORT that resolves to ::1 gets connection-refused
+// — the app looks healthy in its own logs and is killed anyway. Omitting the
+// host makes Node bind :: dual-stack, which answers on both.
+const HOST = process.env.HOST || undefined
 const INDEX = join(ROOT, 'index.html')
 
 const TYPES = {
@@ -68,6 +72,14 @@ const server = createServer((req, res) => {
     return
   }
 
+  // Cheap liveness endpoint, matching Laravel's convention, so probes don't
+  // read the shell off disk on every check.
+  if (req.url === '/up' || req.url === '/health') {
+    res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
+      .end('ok\n')
+    return
+  }
+
   // Unknown paths fall back to the SPA shell rather than 404ing.
   const file = resolveFile(req.url ?? '/') ?? { path: INDEX, size: statSync(INDEX).size }
   const ext = extname(file.path).toLowerCase()
@@ -96,7 +108,8 @@ server.on('error', err => {
 })
 
 server.listen(PORT, HOST, () => {
-  console.log(`Serving ${ROOT} on http://${HOST}:${PORT}`)
+  const addr = server.address()
+  console.log(`Serving ${ROOT} on ${typeof addr === 'object' && addr ? `${addr.address}:${addr.port} (${addr.family})` : PORT}`)
   if (!existsSync(INDEX)) console.error(`Warning: no build at ${ROOT}; serving 503 until one exists.`)
 })
 

@@ -125,6 +125,9 @@ pruned before boot, which would take Vite (and `vite preview`) with it.
 
 Two things keep it from dying quietly behind the proxy:
 
+- **It binds dual-stack.** `0.0.0.0` listens on IPv4 only, so a health probe to
+  `localhost:$PORT` that resolves to `::1` is refused — the app looks healthy in
+  its own logs and gets SIGTERMed anyway. No host is passed, so Node binds `::`.
 - **Signals.** Node terminates on `SIGHUP` and `SIGUSR2` by default. Both are
   ignored; only `SIGTERM` and `SIGINT` shut the server down.
 - **A missing build answers 503** rather than exiting. Exiting would crash-loop
