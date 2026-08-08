@@ -1,6 +1,6 @@
 import {
-  DEFAULTS, ENUMS, LIMITS, MAX_TEXT, MODE_PRESETS, MODES, RAMPS, SHAPES, STRING_KEYS,
-  SURFACE_PRESETS,
+  DEFAULTS, ENUMS, LIMITS, MAX_SPAN, MAX_TEXT, MODE_PRESETS, MODES, RAMPS, SHAPES,
+  STRING_KEYS, SURFACE_PRESETS,
   type Mode, type Params, type Surface,
 } from './types'
 import { rng } from './noise'
@@ -44,7 +44,19 @@ export function normalize(input: Partial<Record<keyof Params, unknown>>): Params
   out.steps = Math.round(out.steps)
   out.floaters = Math.round(out.floaters)
   out.useMid = out.useMid ? 1 : 0
+  out.zoom = Math.max(Math.round(out.zoom), zoomFloor(out))
   return out
+}
+
+/**
+ * How far the canvas may pull back, in percent. A field keeps generating to fill
+ * whatever it is given, so its floor rises with the grid it is already drawing
+ * at. Letters draw a fixed set of blocks however far out you stand, so they get
+ * the full range.
+ */
+export function zoomFloor(p: Pick<Params, 'surface' | 'grid'>): number {
+  const [lo] = LIMITS.zoom!
+  return p.surface === 'letters' ? lo : Math.max(lo, Math.ceil((p.grid / MAX_SPAN) * 100))
 }
 
 /** Starting point for a composition, with everything else left at defaults. */

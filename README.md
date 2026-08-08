@@ -109,8 +109,21 @@ Grouped the way the panel groups them.
 - **Color** — 12 ramps, palette mode (`ramp` / `duotone` / `banded` / `scatter`),
   ground / mid / peak stops, ramp curve, hue drift, saturation, light angle,
   face contrast
-- **Canvas** — format (header / icon), backdrop mode and gradient angle,
+- **Canvas** — format (header / icon), zoom, backdrop mode and gradient angle,
   inset, frame, nudge
+
+**Zoom** scales the canvas over the artwork rather than the artwork itself: the
+blocks keep their world size, so pulling back reveals more and smaller ones and
+pushing in leaves fewer and bigger ones. Scroll or pinch over the artwork, or
+use the `Zoom` field; `Reset view` puts zoom and both nudges back. It applies to
+every surface — on `letters` it crops into the wordmark past what `fit` allows,
+and on a trace it magnifies the waveform around its own centre line.
+
+A field keeps generating to fill whatever canvas it is given, so pulling back
+costs a column of polygons per cell revealed. Zoom's floor therefore rises with
+`grid`, capping the canvas at 40 blocks across its height — past that the blocks
+are thinner than the seams between them anyway. `letters` draws a fixed set of
+blocks however far out you stand, so it gets the full 25–400% range.
 
 `Shuffle everything` rolls a whole design. It starts from the composition's own
 preset and wanders around it rather than rolling every knob uniformly, so the
@@ -154,6 +167,7 @@ command. The CLI runs the same engine:
 npm run generate -- --png --seed 42
 npm run generate -- --random --count 20 --png --out covers/
 npm run generate -- --params "mode=weave&grid=13&stretch=150&tilt=22"
+npm run generate -- --mode islands --zoom 45 --png
 npm run generate -- --surface letters --text DEVREL --baseline flat --png
 npm run generate -- --surface letters --glyphSource generated --aspect 1 --png
 npm run generate -- --surface text --text "DevRel Home" --coverage 100 --png

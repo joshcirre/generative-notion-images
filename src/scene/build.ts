@@ -215,7 +215,9 @@ function plotField(p: Params, plot: Plotter, palette: ReturnType<typeof makePale
   // columns straight off the bottom.
   const banded = !!sig && p.signalMode !== 'radial'
   const traceH = (2 * p.signalBand + 2) * HH + p.height * VE
-  const vh = banded ? Math.max(p.grid * BASE, traceH / 0.86) : p.grid * BASE
+  // Zoom shrinks the window onto a world whose blocks keep their size, so the
+  // grid count is what the canvas holds at 100% and zoom scales around it.
+  const vh = (banded ? Math.max(p.grid * BASE, traceH / 0.86) : p.grid * BASE) / (p.zoom / 100)
   const vw = vh * p.aspect
   const vx = -vw / 2 + (p.shiftX / 100) * vw
   const vy = banded
@@ -455,6 +457,10 @@ function plotLetters(p: Params, plot: Plotter, palette: ReturnType<typeof makePa
     const needed = bw / (1 - 2 * MARGIN)
     if (vw < needed) { vw = needed; vh = vw / p.aspect }
   }
+  // Applied after the widening guard: that one keeps a wordmark from running off
+  // the sides at 100%, but cropping into it is exactly what zooming in is for.
+  const z = p.zoom / 100
+  vh /= z; vw /= z
   const vx = (minX + maxX) / 2 - vw / 2 + (p.shiftX / 100) * vw
   const vy = (minY + maxY) / 2 - vh / 2 + (p.shiftY / 100) * vh
 

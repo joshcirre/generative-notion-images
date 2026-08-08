@@ -94,6 +94,9 @@ export type Params = {
 
   // canvas
   aspect: number
+  zoom: number         // % magnification of the canvas onto the artwork. The
+                       // blocks keep their world size, so zooming in shows
+                       // fewer, bigger ones and zooming out shows more, smaller
   backdrop: Backdrop
   bg1: string
   bg2: string
@@ -123,7 +126,7 @@ export const DEFAULTS: Params = {
   colorA: '#ec8f7a', colorMid: '#f53003', colorB: '#c42602', useMid: 1,
   curve: 100, hueShift: 0, saturation: 100, light: 45, contrast: 100,
 
-  aspect: 2.5, backdrop: 'gradient', bg1: '#ffe2dd', bg2: '#f0d1c9', bgAngle: 135,
+  aspect: 2.5, zoom: 100, backdrop: 'gradient', bg1: '#ffe2dd', bg2: '#f0d1c9', bgAngle: 135,
   inset: 0, frame: 0, frameColor: '#c42602', shiftX: 0, shiftY: 0,
 }
 
@@ -153,9 +156,15 @@ export const LIMITS: Partial<Record<keyof Params, [number, number]>> = {
   bevel: [0, 100], grain: [0, 100], occlusion: [0, 100],
   curve: [20, 320], hueShift: [-180, 180], saturation: [0, 200],
   light: [0, 360], contrast: [0, 220],
-  aspect: [1, 6], bgAngle: [0, 360], inset: [0, 20], frame: [0, 12],
+  aspect: [1, 6], zoom: [25, 400], bgAngle: [0, 360], inset: [0, 20], frame: [0, 12],
   shiftX: [-60, 60], shiftY: [-60, 60],
 }
+
+// A field grows to fill whatever canvas it is given, so pulling back costs one
+// more column of polygons per cell revealed. This caps how much world may be on
+// screen at once, measured in blocks across the canvas height — past it the
+// blocks are smaller than the seams between them anyway.
+export const MAX_SPAN = 40
 
 export type RampPreset = { name: string; a: string; mid: string; b: string }
 

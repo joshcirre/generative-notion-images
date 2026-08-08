@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BACKDROPS, BASELINES, GLYPH_SOURCES, MAX_TEXT, MODES, PALETTES, RAMPS, RUNS,
+  BACKDROPS, BASELINES, GLYPH_SOURCES, LIMITS, MAX_TEXT, MODES, PALETTES, RAMPS, RUNS,
   SEAMS, SHAPES, SIGNAL_MODES, SURFACES, SYMMETRIES,
   buildScene, fromQuery, generateMask, glyphMask, normalize, preset, randomize,
-  soleGlyph, surfacePreset, toQuery, tint,
+  soleGlyph, surfacePreset, toQuery, tint, zoomFloor,
   type Params,
 } from '../scene'
 import {
@@ -17,6 +17,7 @@ import { exportPNG, exportSVG } from './export'
 
 const pct = (v: number) => `${v}%`
 const EXPORT_WIDTHS = (aspect: number) => (aspect === 1 ? [512, 1024, 2048] : [1500, 3000])
+const MAX_ZOOM = LIMITS.zoom![1]
 
 export default function App() {
   const [params, setParams] = useState<Params>(() =>
@@ -47,10 +48,35 @@ export default function App() {
       : scene.svg),
     [scene, guides, params.aspect])
   const query = useMemo(() => toQuery(params), [params])
+  // Derived from the same query the effect below writes, rather than read back
+  // off `location`: the effect runs after the render, so reading it here would
+  // always show the previous design's URL.
+  const href = `${window.location.origin}${window.location.pathname}${query ? `#${query}` : ''}`
 
   useEffect(() => {
     window.history.replaceState(null, '', query ? `#${query}` : window.location.pathname)
   }, [query])
+
+  // Wheel and trackpad pinch over the artwork zoom the canvas. Registered
+  // natively rather than through React, whose wheel listener is passive: a pinch
+  // that goes un-prevented zooms the whole browser page instead. Zoom steps
+  // geometrically so a notch feels the same however far in you already are, and
+  // always moves at least a point so a slow trackpad drag isn't rounded away.
+  const artwork = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = artwork.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      setParams(prev => {
+        const rate = e.ctrlKey ? 0.01 : 0.0015 // pinch reports far smaller deltas
+        const step = Math.max(1, Math.round(prev.zoom * Math.abs(Math.expm1(-e.deltaY * rate))))
+        return normalize({ ...prev, zoom: prev.zoom + (e.deltaY < 0 ? step : -step) })
+      })
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
 
   const surface = params.surface
   const isLetters = surface === 'letters'
@@ -82,6 +108,7 @@ export default function App() {
               <span className="ml-auto tabular-nums">{describe(params).toUpperCase()}</span>
               <span className="tabular-nums">{scene.faces.toLocaleString()} FACES</span>
               <span className="hidden tabular-nums sm:inline">PEAK {scene.peak}</span>
+              <span className="tabular-nums">ZOOM {params.zoom}%</span>
             </StatusBar>
 
             <div className="flex min-h-0 flex-1 flex-col gap-2 wide:flex-row wide:gap-3">
@@ -90,9 +117,10 @@ export default function App() {
             {/* The artwork letterboxes itself inside the screen via the SVG's
                 own preserveAspectRatio, so the panel fits any viewport without
                 measuring anything. */}
-            <div className="flex max-h-[34dvh] items-center wide:max-h-none wide:min-h-0 wide:flex-1">
+            <div ref={artwork} className="flex max-h-[34dvh] items-center wide:max-h-none wide:min-h-0 wide:flex-1">
               <DeviceScreen style={{ aspectRatio: String(params.aspect) }}>
                 <div
+                  title="Scroll to zoom"
                   className="checker h-full w-full [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
                   dangerouslySetInnerHTML={{ __html: preview }}
                 />
@@ -118,7 +146,9 @@ export default function App() {
                   ...randomize(Math.floor(Math.random() * 99999) + 1, prev.surface),
                   // Content is not style: what you typed, drew or recorded stays.
                   surface: prev.surface, text: prev.text, custom: prev.custom,
-                  signal: prev.signal, aspect: prev.aspect,
+                  signal: prev.signal,
+                  // Nor is the canvas you chose to look through.
+                  aspect: prev.aspect, zoom: prev.zoom,
                 }))}
               >
                 ⚡ Shuffle
@@ -321,6 +351,27 @@ export default function App() {
                   <Scrub label="Frame" value={params.frame} onChange={v => set('frame', v)} min={0} max={12} step={0.5} />
                   <ColorField label="Frame col" value={params.frameColor} onChange={v => set('frameColor', v)} />
                 </div>
+                {/* Zoom and the two nudges are one group: where the canvas sits
+                    over the artwork, as opposed to what the artwork is. */}
+                <div className="grid grid-cols-2 items-end gap-2">
+                  <Scrub
+                    label="Zoom"
+                    value={params.zoom}
+                    onChange={v => set('zoom', v)}
+                    min={zoomFloor(params)}
+                    max={MAX_ZOOM}
+                    step={5}
+                    unit="%"
+                  />
+                  <Button onClick={() => setParams(p => normalize({ ...p, zoom: 100, shiftX: 0, shiftY: 0 }))}>
+                    Reset view
+                  </Button>
+                </div>
+                <p className="font-device text-[10px] leading-relaxed text-muted">
+                  {params.surface === 'letters'
+                    ? 'Crops into the wordmark past what Fit allows. Scroll over the artwork to zoom.'
+                    : `Blocks keep their size, so the canvas holds ${describeSpan(params)}. Scroll over the artwork to zoom.`}
+                </p>
                 <BracketSlider label="Nudge X" value={params.shiftX} onChange={v => set('shiftX', v)} min={-60} max={60} format={pct} />
                 <BracketSlider label="Nudge Y" value={params.shiftY} onChange={v => set('shiftY', v)} min={-60} max={60} format={pct} />
               </Rack>
@@ -329,7 +380,7 @@ export default function App() {
             </div>
 
             <StatusBar>
-              <CopyLine label="URL" value={window.location.href} />
+              <CopyLine label="URL" value={href} />
               <span className="hidden min-w-0 sm:flex">
                 <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
               </span>
@@ -356,6 +407,13 @@ function carryOver(p: Params): Partial<Params> {
   const { mode, ...rest } = p
   void mode
   return rest
+}
+
+/** Blocks across the canvas height once zoom is folded in — the plain-language
+ *  version of what pulling back actually does to a field. */
+function describeSpan(p: Params): string {
+  const n = Math.round(p.grid / (p.zoom / 100))
+  return `${n} block${n === 1 ? '' : 's'} across its height`
 }
 
 function describe(p: Params): string {
