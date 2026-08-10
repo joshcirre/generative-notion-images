@@ -180,14 +180,36 @@ results look deliberate instead of noisy.
 | `npm run dev` | Start the dev server |
 | `npm run build` | Production build into `public/` |
 | `npm run check` | Type-check |
+| `npm test` | Verify server-side SVG and PNG rendering |
+| `npm run test:e2e` | Boot Laravel and Node and render through both over HTTP |
 | `npm run generate` | Render designs from the command line |
+
+## Agent API and Laravel MCP
+
+`api/` contains a separate Laravel application that exposes the generator to
+remote agents without rewriting the TypeScript scene engine. It provides:
+
+- `POST /api/renders` for authenticated REST rendering.
+- `/mcp/notion-images` with a `generate-notion-image` MCP tool.
+- Agent-friendly letter layouts, background layers, and color presets plus full
+  parameter overrides.
+- PNG or SVG content returned directly to the caller; storage is optional.
+
+Laravel calls the root Node application's protected `POST /api/render`
+endpoint. See [`api/README.md`](api/README.md) for local setup, request fields,
+MCP configuration, and Laravel Cloud deployment.
 
 ## Deploying
 
-The app is a static SPA. Laravel Cloud boots it with `npm start` and puts nginx
-in front, so `server.js` is the web server: it listens on `$PORT` and serves the
-build in `public/`. It has no dependencies on purpose — devDependencies are
-pruned before boot, which would take Vite (and `vite preview`) with it.
+The repository deploys as two independent Laravel Cloud applications. The root
+Node application serves the editor and rendering endpoint; the `/api` root is
+the Laravel REST/MCP gateway. Both applications can use the same repository and
+deploy independently.
+
+Cloud boots the root application with `npm start` and puts nginx in front.
+`server.js` listens on `$PORT`, serves the build in `public/`, and loads the
+precompiled renderer from `runtime/`. Runtime dependencies are limited to the
+native SVG-to-PNG converter; Vite and TypeScript remain development-only.
 
 Two things keep it from dying quietly behind the proxy:
 
@@ -199,8 +221,14 @@ Two things keep it from dying quietly behind the proxy:
 - **A missing build answers 503** rather than exiting. Exiting would crash-loop
   and report only as "app crashing", with the actual reason nowhere visible.
 
-Cloud's build command is `npm ci --audit false && npm run build`; no deploy
-command is needed. `PORT`, `HOST` and `STATIC_ROOT` are all overridable.
+The root application's build command is `npm ci --audit false && npm run build`;
+no deploy command is needed. Set `RENDER_API_TOKEN` in production. `PORT`,
+`HOST`, `STATIC_ROOT`, and `RENDER_MODULE` are overridable.
+
+Create the Laravel Cloud API application from the same repository with `/api`
+as its root directory. Configure `AGENT_API_TOKEN`, `AGENT_RATE_LIMIT`,
+`RENDERER_URL`, and `RENDERER_TOKEN`; the last value must match the generator's
+`RENDER_API_TOKEN`.
 
 ## Generating outside the browser
 
