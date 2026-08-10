@@ -494,38 +494,43 @@ export default function App() {
               </div>
             </div>
 
-            <StatusBar>
-              <div className="flex w-full min-w-0 flex-col gap-1">
+            <footer className="shrink-0 border-t border-dashed border-sand-6 pt-2 font-device text-[10px] tracking-wide text-muted">
+              <div className="divide-y divide-sand-6 overflow-hidden rounded border border-sand-6 bg-white/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
                 <CopyLine label="URL" value={href} />
                 <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
+              </div>
+
+              <div className="mt-2 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={() => setAgentConnectOpen(true)}
-                  className="self-start border border-primary bg-primary px-1.5 py-0.5 font-device text-[9px] tracking-wide text-white uppercase transition-colors hover:bg-primary-deep"
+                  className="inline-flex min-h-7 items-center gap-2 border border-primary bg-primary px-3 font-pixel text-[9px] tracking-[0.1em] text-white uppercase shadow-[2px_2px_0_#c42602] transition-[background-color,transform,box-shadow] hover:bg-primary-deep active:translate-x-px active:translate-y-px active:shadow-none"
                 >
+                  <span aria-hidden>↗</span>
                   Connect agent
                 </button>
+
+                <nav className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1" aria-label="Project links">
+                  <a
+                    className="font-bold text-ink hover:text-primary"
+                    href="https://github.com/joshcirre/generative-notion-images"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    GITHUB + CLI DOCS ↗
+                  </a>
+                  <span className="text-sand-8" aria-hidden>/</span>
+                  <a
+                    className="hover:text-primary"
+                    href="https://github.com/wking-io/patterns-for-creativity"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    ORIGINAL INSPIRATION ↗
+                  </a>
+                </nav>
               </div>
-              <div className="hidden w-full min-w-0 items-center gap-5 md:flex">
-                <a
-                  className="shrink-0 hover:text-primary"
-                  href="https://github.com/joshcirre/generative-notion-images"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  SOURCE + CLI DOCS ↗
-                </a>
-                <span className="text-sand-8">/</span>
-                <a
-                  className="min-w-0 truncate hover:text-primary"
-                  href="https://github.com/wking-io/patterns-for-creativity"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  GENERATOR INSPIRED BY WILL KING&rsquo;S PATTERNS FOR CREATIVITY ↗
-                </a>
-              </div>
-            </StatusBar>
+            </footer>
           </div>
         </DeviceFace>
       </DeviceBody>
@@ -638,15 +643,22 @@ function CopyLine({ label, value }: { label: string; value: string }) {
   return (
     <button
       type="button"
-      className="flex w-full min-w-0 items-center gap-2 text-left hover:text-primary"
+      title={`Copy ${label}: ${value}`}
+      aria-label={`Copy full ${label}`}
+      className="group grid min-h-8 w-full min-w-0 grid-cols-[44px_minmax(0,1fr)_auto] items-center text-left transition-colors hover:bg-white"
       onClick={() => {
         void navigator.clipboard.writeText(value)
         setCopied(true)
         setTimeout(() => setCopied(false), 1200)
       }}
     >
-      <span className="shrink-0 border border-sand-7 px-1">{copied ? 'COPIED' : label}</span>
-      <span className="truncate opacity-70">{value}</span>
+      <span className="self-stretch border-r border-sand-6 bg-sand-3 px-2 py-2 font-pixel text-[8px] tracking-[0.12em] text-ink">{label}</span>
+      <span className="min-w-0 px-3 text-[9px] opacity-70 sm:text-[10px]">
+        <span className="block max-w-[min(58vw,640px)] truncate">{value}</span>
+      </span>
+      <span className="mr-2 border border-sand-7 bg-chassis px-1.5 py-0.5 text-[8px] text-muted transition-colors group-hover:border-primary group-hover:text-primary">
+        {copied ? 'COPIED ✓' : 'COPY'}
+      </span>
     </button>
   )
 }
