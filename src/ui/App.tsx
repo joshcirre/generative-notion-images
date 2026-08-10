@@ -495,34 +495,36 @@ export default function App() {
             </div>
 
             <StatusBar>
-              <button
-                type="button"
-                onClick={() => setAgentConnectOpen(true)}
-                className="shrink-0 border border-primary bg-primary px-1.5 py-0.5 font-device text-[9px] tracking-wide text-white uppercase transition-colors hover:bg-primary-deep"
-              >
-                Connect agent
-              </button>
-              <CopyLine label="URL" value={href} />
-              <span className="hidden min-w-0 sm:flex">
+              <div className="flex w-full min-w-0 flex-col gap-1">
+                <CopyLine label="URL" value={href} />
                 <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
-              </span>
-              <a
-                className="ml-auto hidden shrink-0 hover:text-primary md:inline"
-                href="https://github.com/joshcirre/generative-notion-images"
-                target="_blank"
-                rel="noreferrer"
-              >
-                SOURCE + CLI DOCS ↗
-              </a>
-              <span className="hidden text-sand-8 md:inline">/</span>
-              <a
-                className="hidden shrink-0 hover:text-primary md:inline"
-                href="https://github.com/wking-io/patterns-for-creativity"
-                target="_blank"
-                rel="noreferrer"
-              >
-                GENERATOR INSPIRED BY WILL KING&rsquo;S PATTERNS FOR CREATIVITY ↗
-              </a>
+                <button
+                  type="button"
+                  onClick={() => setAgentConnectOpen(true)}
+                  className="self-start border border-primary bg-primary px-1.5 py-0.5 font-device text-[9px] tracking-wide text-white uppercase transition-colors hover:bg-primary-deep"
+                >
+                  Connect agent
+                </button>
+              </div>
+              <div className="hidden w-full min-w-0 items-center gap-5 md:flex">
+                <a
+                  className="shrink-0 hover:text-primary"
+                  href="https://github.com/joshcirre/generative-notion-images"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  SOURCE + CLI DOCS ↗
+                </a>
+                <span className="text-sand-8">/</span>
+                <a
+                  className="min-w-0 truncate hover:text-primary"
+                  href="https://github.com/wking-io/patterns-for-creativity"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GENERATOR INSPIRED BY WILL KING&rsquo;S PATTERNS FOR CREATIVITY ↗
+                </a>
+              </div>
             </StatusBar>
           </div>
         </DeviceFace>
@@ -636,7 +638,7 @@ function CopyLine({ label, value }: { label: string; value: string }) {
   return (
     <button
       type="button"
-      className="flex min-w-0 max-w-[38%] items-center gap-2 text-left hover:text-primary"
+      className="flex w-full min-w-0 items-center gap-2 text-left hover:text-primary"
       onClick={() => {
         void navigator.clipboard.writeText(value)
         setCopied(true)
