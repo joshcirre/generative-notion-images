@@ -43,7 +43,7 @@ exception: they stay in the current browser tab and are not put in the URL.
 | `weave` | interlaced basket strips |
 
 Shapes: `full`, `island`, `ridge`, `corner`, `vignette`. The last one is dense
-at the edges and open in the middle, so a page title has somewhere to sit.
+at the edges and open in the middle, which is useful for framing a foreground.
 
 ## Block letters
 
@@ -110,19 +110,24 @@ shade onto the block faces. `Auto` reads alpha for transparent artwork and edge
 contrast for opaque images; `Alpha`, `Dark`, and `Light` let you select the mask
 explicitly. `Invert` flips that selection.
 
-## Titles, symbols, and background grids
+## Background layers
 
-**Title & symbols** is a screen-space layer independent of the selected
-surface. A header can therefore keep its generated blocks while adding ordinary
-title text with its own position, alignment, size, tracking, and color. Seeded
-plotter symbols can sit around the perimeter or scatter behind the artwork;
-their placement changes predictably with the scene seed.
+The Canvas rack can put a `grid`, a generative `pattern`, or `both` behind the
+selected surface. This is especially useful with **Letters**: the word remains
+the foreground artwork while a lower-relief version of the normal pattern
+language frames it from the outskirts.
 
-Enable **Background grid** under Canvas to add two line families behind the
-artwork. Size controls their spacing, Direction rotates the first family, and
-Skew controls the angle to the second. Opacity, fade direction, and directional
-fade can create anything from an even drafting grid to lines that emerge from
-one side of a cover. Grid color is independent of the artwork palette.
+The background pattern has its own composition and seed, so it can be tuned or
+shuffled without changing the letters. Scale, height, density, detail, warp,
+edge reach, and opacity keep it subordinate to the foreground. Edge reach
+controls how far the blocks travel inward; the center is always cleared by the
+background field's perimeter falloff.
+
+The grid uses two line families. Size controls their spacing, Direction rotates
+the first family, and Skew controls the angle to the second. Opacity, fade
+direction, and directional fade can create anything from an even drafting grid
+to lines that emerge from one side of a cover. Grid color is independent of the
+artwork palette.
 
 ## Parameters
 
@@ -142,10 +147,9 @@ Grouped the way the panel groups them.
 - **Color** — 12 ramps, palette mode (`ramp` / `duotone` / `banded` / `scatter`),
   ground / mid / peak stops, ramp curve, hue drift, saturation, light angle,
   face contrast
-- **Title & symbols** — overlay text, placement, typography, seeded perimeter or
-  background symbols
 - **Canvas** — format (header / icon), zoom, backdrop mode and gradient angle,
-  skewable/fadeable background grid, inset, frame, nudge
+  background layer (`none` / `grid` / `pattern` / `both`), edge-pattern controls,
+  skewable/fadeable grid, inset, frame, nudge
 
 **Zoom** scales the canvas over the artwork rather than the artwork itself: the
 blocks keep their world size, so pulling back reveals more and smaller ones and
@@ -203,7 +207,9 @@ npm run generate -- --png --seed 42
 npm run generate -- --random --count 20 --png --out covers/
 npm run generate -- --params "mode=weave&grid=13&stretch=150&tilt=22"
 npm run generate -- --mode islands --zoom 45 --png
-npm run generate -- --surface letters --text DEVREL --baseline flat --png
+npm run generate -- --surface letters --text DEVREL --baseline flat --png \
+  --backgroundLayer pattern --backgroundPatternMode terrain \
+  --backgroundPatternSeed 42 --backgroundPatternReach 30
 npm run generate -- --surface letters --glyphSource generated --aspect 1 --png
 npm run generate -- --surface text --text "DevRel Home" --coverage 100 --png
 ```

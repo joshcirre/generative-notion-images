@@ -188,14 +188,13 @@ export function Segmented<T extends string>({
 }
 
 export function TextField({
-  label, value, onChange, placeholder, maxLength, uppercase = true,
+  label, value, onChange, placeholder, maxLength,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   placeholder?: string
   maxLength?: number
-  uppercase?: boolean
 }) {
   const id = `t-${label.toLowerCase().replace(/\W+/g, '-')}`
   return (
@@ -210,7 +209,7 @@ export function TextField({
         spellCheck={false}
         autoComplete="off"
         onChange={e => onChange(e.target.value)}
-        className={`border border-sand-7 bg-white px-2 py-1.5 font-device text-[16px] font-bold tracking-widest text-ink focus:border-primary focus:outline-none sm:text-sm ${uppercase ? 'uppercase' : ''}`}
+        className="border border-sand-7 bg-white px-2 py-1.5 font-device text-[16px] font-bold tracking-widest text-ink uppercase focus:border-primary focus:outline-none sm:text-sm"
       />
     </div>
   )

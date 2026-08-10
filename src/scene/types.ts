@@ -17,8 +17,7 @@ export const SHAPES = ['full', 'island', 'ridge', 'corner', 'vignette'] as const
 export const PALETTES = ['ramp', 'duotone', 'banded', 'scatter'] as const
 export const SEAMS = ['cut', 'light', 'dark', 'none'] as const
 export const BACKDROPS = ['gradient', 'solid', 'none'] as const
-export const TITLE_ALIGNS = ['left', 'center', 'right'] as const
-export const ORNAMENTS = ['none', 'perimeter', 'background'] as const
+export const BACKGROUND_LAYERS = ['none', 'grid', 'pattern', 'both'] as const
 export const IMAGE_CHANNELS = ['auto', 'alpha', 'dark', 'light'] as const
 
 export type Surface = (typeof SURFACES)[number]
@@ -32,8 +31,7 @@ export type Shape = (typeof SHAPES)[number]
 export type Palette = (typeof PALETTES)[number]
 export type SeamStyle = (typeof SEAMS)[number]
 export type Backdrop = (typeof BACKDROPS)[number]
-export type TitleAlign = (typeof TITLE_ALIGNS)[number]
-export type OrnamentMode = (typeof ORNAMENTS)[number]
+export type BackgroundLayer = (typeof BACKGROUND_LAYERS)[number]
 export type ImageChannel = (typeof IMAGE_CHANNELS)[number]
 
 /** A decoded image held in browser memory. It never enters Params or a URL. */
@@ -127,25 +125,21 @@ export type Params = {
   shiftX: number
   shiftY: number
 
-  // screen-space title, independent of the generated surface beneath it
-  title: string
-  titleX: number
-  titleY: number
-  titleSize: number
-  titleAlign: TitleAlign
-  titleColor: string
-  titleTracking: number
+  // Independent layers behind the selected surface. The pattern reuses the
+  // isometric field language, but is kept sparse and biased to the perimeter.
+  backgroundLayer: BackgroundLayer
+  backgroundPatternMode: Mode
+  backgroundPatternSeed: number
+  backgroundPatternGrid: number
+  backgroundPatternHeight: number
+  backgroundPatternCoverage: number
+  backgroundPatternDetail: number
+  backgroundPatternWarp: number
+  backgroundPatternReach: number
+  backgroundPatternOpacity: number
 
-  // seeded symbols distributed around the edge or through the background
-  ornaments: OrnamentMode
-  ornamentCount: number
-  ornamentSize: number
-  ornamentOpacity: number
-  ornamentColor: string
-
-  // two line families form a skewable grid behind the artwork. Fade controls
-  // how much of the canvas the grid travels through before disappearing.
-  gridOverlay: number
+  // Two line families form a skewable grid behind both pattern and artwork.
+  // Fade controls how much of the canvas the grid travels through.
   gridSpacing: number
   gridAngle: number
   gridSkew: number
@@ -177,11 +171,13 @@ export const DEFAULTS: Params = {
   aspect: 2.5, zoom: 100, backdrop: 'gradient', bg1: '#ffe2dd', bg2: '#f0d1c9', bgAngle: 135,
   inset: 0, frame: 0, frameColor: '#c42602', shiftX: 0, shiftY: 0,
 
-  title: '', titleX: 50, titleY: 50, titleSize: 14, titleAlign: 'center',
-  titleColor: '#21201c', titleTracking: 0,
-  ornaments: 'none', ornamentCount: 8, ornamentSize: 5, ornamentOpacity: 45,
-  ornamentColor: '#c42602',
-  gridOverlay: 0, gridSpacing: 9, gridAngle: 30, gridSkew: 120,
+  backgroundLayer: 'none',
+  backgroundPatternMode: 'terrain', backgroundPatternSeed: 17,
+  backgroundPatternGrid: 12, backgroundPatternHeight: 2,
+  backgroundPatternCoverage: 44, backgroundPatternDetail: 38,
+  backgroundPatternWarp: 12, backgroundPatternReach: 30,
+  backgroundPatternOpacity: 58,
+  gridSpacing: 9, gridAngle: 30, gridSkew: 120,
   gridOpacity: 18, gridFade: 70, gridFadeAngle: 0, gridColor: '#21201c',
 }
 
@@ -192,14 +188,15 @@ export const STRING_KEYS = [
   'text', 'run', 'baseline', 'custom', 'imageChannel',
   'mode', 'shape', 'palette', 'seamStyle', 'backdrop',
   'colorA', 'colorMid', 'colorB', 'bg1', 'bg2', 'frameColor',
-  'title', 'titleAlign', 'titleColor', 'ornaments', 'ornamentColor', 'gridColor',
+  'backgroundLayer', 'backgroundPatternMode', 'gridColor',
 ] as const
 
 export const ENUMS: Partial<Record<keyof Params, readonly string[]>> = {
   surface: SURFACES, run: RUNS, baseline: BASELINES,
   signalMode: SIGNAL_MODES, glyphSource: GLYPH_SOURCES, glyphSymmetry: SYMMETRIES,
   mode: MODES, shape: SHAPES, palette: PALETTES, seamStyle: SEAMS, backdrop: BACKDROPS,
-  imageChannel: IMAGE_CHANNELS, titleAlign: TITLE_ALIGNS, ornaments: ORNAMENTS,
+  imageChannel: IMAGE_CHANNELS, backgroundLayer: BACKGROUND_LAYERS,
+  backgroundPatternMode: MODES,
 }
 
 // Hard bounds, applied wherever parameters enter the system.
@@ -216,9 +213,11 @@ export const LIMITS: Partial<Record<keyof Params, [number, number]>> = {
   light: [0, 360], contrast: [0, 220],
   aspect: [1, 6], zoom: [25, 400], bgAngle: [0, 360], inset: [0, 20], frame: [0, 12],
   shiftX: [-60, 60], shiftY: [-60, 60],
-  titleX: [0, 100], titleY: [0, 100], titleSize: [3, 48], titleTracking: [-5, 30],
-  ornamentCount: [1, 24], ornamentSize: [1, 16], ornamentOpacity: [0, 100],
-  gridOverlay: [0, 1], gridSpacing: [2, 30], gridAngle: [-180, 180],
+  backgroundPatternSeed: [1, 1e9], backgroundPatternGrid: [4, 26],
+  backgroundPatternHeight: [1, 8], backgroundPatternCoverage: [0, 100],
+  backgroundPatternDetail: [1, 100], backgroundPatternWarp: [0, 100],
+  backgroundPatternReach: [5, 85], backgroundPatternOpacity: [0, 100],
+  gridSpacing: [2, 30], gridAngle: [-180, 180],
   gridSkew: [15, 165], gridOpacity: [0, 100], gridFade: [0, 100],
   gridFadeAngle: [0, 360],
 }

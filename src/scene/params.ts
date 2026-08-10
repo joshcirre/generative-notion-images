@@ -46,9 +46,9 @@ export function normalize(input: Partial<Record<keyof Params, unknown>>): Params
   out.imageResolution = Math.round(out.imageResolution)
   out.imageInvert = out.imageInvert ? 1 : 0
   out.useMid = out.useMid ? 1 : 0
-  out.gridOverlay = out.gridOverlay ? 1 : 0
-  out.ornamentCount = Math.round(out.ornamentCount)
-  out.title = String(out.title).slice(0, MAX_TEXT)
+  out.backgroundPatternSeed = Math.max(1, Math.round(out.backgroundPatternSeed))
+  out.backgroundPatternGrid = Math.round(out.backgroundPatternGrid)
+  out.backgroundPatternHeight = Math.round(out.backgroundPatternHeight)
   out.zoom = Math.max(Math.round(out.zoom), zoomFloor(out))
   return out
 }
@@ -155,6 +155,16 @@ export function randomize(seed: number, surface: Surface = 'pattern'): Params {
     inset: rand() < 0.22 ? near(5, 3, 2, 9) : 0,
     frame: 0,
     frameColor: ramp.b,
+
+    backgroundPatternMode: pick(MODES),
+    backgroundPatternSeed: Math.max(1, Math.floor(rand() * 99999)),
+    backgroundPatternGrid: near(12, 4, 8, 20),
+    backgroundPatternHeight: near(2, 1.4, 1, 5),
+    backgroundPatternCoverage: near(44, 16, 20, 68),
+    backgroundPatternDetail: near(38, 18, 10, 82),
+    backgroundPatternWarp: rand() < 0.55 ? near(16, 18, 0, 55) : 0,
+    backgroundPatternReach: near(30, 12, 12, 55),
+    backgroundPatternOpacity: near(58, 18, 28, 82),
   })
 }
 
@@ -175,6 +185,9 @@ export function fromQuery(str: string): Partial<Params> {
     const v = q.get(k)
     if (v !== null) out[k] = v
   }
+  // Links created by the first grid implementation used a boolean toggle.
+  // Keep those links useful while omitting the retired key from new URLs.
+  if (!q.has('backgroundLayer') && Number(q.get('gridOverlay'))) out.backgroundLayer = 'grid'
   return out as Partial<Params>
 }
 

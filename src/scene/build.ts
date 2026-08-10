@@ -65,11 +65,11 @@ function field(mode: Params['mode'], u: number, v: number, seed: number, freq: n
 // Shared plotting surface: an isometric grid both generators draw boxes onto.
 // ---------------------------------------------------------------------------
 
-function makePlotter(p: Params) {
+function makePlotter(p: Params, unit = BASE) {
   const rad = (p.tilt * Math.PI) / 180
-  const HW = BASE * Math.cos(rad)
-  const HH = BASE * Math.sin(rad)
-  const VE = BASE * (p.stretch / 100) // vertical cube edge
+  const HW = unit * Math.cos(rad)
+  const HH = unit * Math.sin(rad)
+  const VE = unit * (p.stretch / 100) // vertical cube edge
   const g = p.gap / 200               // inset applied to each side of a footprint
 
   const px = (a: number, b: number) => r1((a - b) * HW)
@@ -185,11 +185,41 @@ export function buildScene(input: Partial<Params> = {}, image?: ImageSample | nu
       ? plotImage(p, plot, palette, image)
       : plotField(p, plot, palette)
 
+  let backgroundPolys: Poly[] = []
+  let backgroundPeak = 0
+  if (p.backgroundLayer === 'pattern' || p.backgroundLayer === 'both') {
+    const backgroundParams = normalize({
+      ...p,
+      surface: 'pattern',
+      mode: p.backgroundPatternMode,
+      shape: 'vignette',
+      seed: p.backgroundPatternSeed,
+      grid: p.backgroundPatternGrid,
+      height: p.backgroundPatternHeight,
+      coverage: p.backgroundPatternCoverage,
+      detail: p.backgroundPatternDetail,
+      warp: p.backgroundPatternWarp,
+      octaves: Math.min(3, p.octaves),
+      jitter: 0,
+      steps: 0,
+      floaters: 0,
+    })
+    // The secondary field has its own scale, but is generated directly inside
+    // the foreground's viewport so LETTERS remains the composition's anchor.
+    const backgroundPlot = makePlotter(backgroundParams, out.view.h / backgroundParams.grid)
+    const background = plotField(backgroundParams, backgroundPlot, makePalette(backgroundParams), {
+      view: out.view,
+      edgeReach: p.backgroundPatternReach,
+    })
+    backgroundPolys = backgroundPlot.polys
+    backgroundPeak = background.peak
+  }
+
   return {
-    svg: assemble(plot.polys, p, out.view),
+    svg: assemble(plot.polys, p, out.view, backgroundPolys),
     view: out.view,
-    faces: plot.polys.length,
-    peak: out.peak,
+    faces: plot.polys.length + backgroundPolys.length,
+    peak: Math.max(out.peak, backgroundPeak),
     params: p,
   }
 }
@@ -198,7 +228,12 @@ export function buildScene(input: Partial<Params> = {}, image?: ImageSample | nu
 // Surface: generative height field
 // ---------------------------------------------------------------------------
 
-function plotField(p: Params, plot: Plotter, palette: ReturnType<typeof makePalette>) {
+function plotField(
+  p: Params,
+  plot: Plotter,
+  palette: ReturnType<typeof makePalette>,
+  options: { view?: Rect; edgeReach?: number } = {},
+) {
   const { px, py, HW, HH, VE, box } = plot
 
   // Text drives its own variation: the same words always land on the same
@@ -221,14 +256,15 @@ function plotField(p: Params, plot: Plotter, palette: ReturnType<typeof makePale
   const traceH = (2 * p.signalBand + 2) * HH + p.height * VE
   // Zoom shrinks the window onto a world whose blocks keep their size, so the
   // grid count is what the canvas holds at 100% and zoom scales around it.
-  const vh = (banded ? Math.max(p.grid * BASE, traceH / 0.86) : p.grid * BASE) / (p.zoom / 100)
-  const vw = vh * p.aspect
-  const vx = -vw / 2 + (p.shiftX / 100) * vw
-  const vy = banded
+  const naturalH = (banded ? Math.max(p.grid * BASE, traceH / 0.86) : p.grid * BASE) / (p.zoom / 100)
+  const naturalW = naturalH * p.aspect
+  const naturalX = -naturalW / 2 + (p.shiftX / 100) * naturalW
+  const naturalY = banded
     // Centre on the trace itself: it sits on the d = 0 line and rises from there.
-    ? HH - (p.height * VE) / 2 - vh / 2 + (p.shiftY / 100) * vh
-    : -vh / 2 - p.height * VE * 0.35 + (p.shiftY / 100) * vh
-  const view: Rect = { x: vx, y: vy, w: vw, h: vh }
+    ? HH - (p.height * VE) / 2 - naturalH / 2 + (p.shiftY / 100) * naturalH
+    : -naturalH / 2 - p.height * VE * 0.35 + (p.shiftY / 100) * naturalH
+  const view: Rect = options.view ?? { x: naturalX, y: naturalY, w: naturalW, h: naturalH }
+  const { x: vx, y: vy, w: vw, h: vh } = view
   const cx = vx + vw / 2, cy = vy + vh / 2
 
   // Walk the grid in (d = u+v, s = u-v); d ascending is already back-to-front.
@@ -246,9 +282,16 @@ function plotField(p: Params, plot: Plotter, palette: ReturnType<typeof makePale
     switch (p.shape) {
       case 'ridge': return smooth(clamp01(1.3 - Math.abs(Y) * 1.3))
       case 'corner': return smooth(clamp01(1.15 - ((X + Y + 2) / 4) * 1.6))
-      // Dense at the edges, open in the middle — leaves the center clear for a
-      // page title to sit over.
-      case 'vignette': return smooth(clamp01(Math.hypot(X * 0.9, Y) * 1.25 - 0.15))
+      // Dense at the edges, open in the middle. A secondary background field
+      // gets an explicit reach control; the primary vignette keeps its original
+      // falloff for backward-compatible pattern URLs.
+      case 'vignette': {
+        if (options.edgeReach === undefined) {
+          return smooth(clamp01(Math.hypot(X * 0.9, Y) * 1.25 - 0.15))
+        }
+        const start = 0.9 - (options.edgeReach / 100) * 0.62
+        return smooth(clamp01((Math.hypot(X * 0.9, Y) - start) / Math.max(0.08, 1 - start)))
+      }
       default: return smooth(clamp01(1.35 - Math.hypot(X * 0.9, Y) * 1.35))
     }
   }
@@ -584,7 +627,7 @@ function plotImage(
 
 // ---------------------------------------------------------------------------
 
-function assemble(polys: Poly[], p: Params, view: Rect): string {
+function assemble(polys: Poly[], p: Params, view: Rect, backgroundPolys: Poly[] = []): string {
   const { x, y, w, h } = view
   const defs: string[] = []
   const body: string[] = []
@@ -600,7 +643,7 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
     body.push(`<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#bg)"/>`)
   }
 
-  if (p.gridOverlay && p.gridOpacity > 0) {
+  if ((p.backgroundLayer === 'grid' || p.backgroundLayer === 'both') && p.gridOpacity > 0) {
     const spacing = Math.max(2, (p.gridSpacing / 100) * h)
     const cx = x + w / 2, cy = y + h / 2
     const fa = (p.gridFadeAngle * Math.PI) / 180
@@ -625,32 +668,35 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
     )
   }
 
-  if (p.ornaments === 'background') body.push(ornamentLayer(p, view))
+  const polygonArt = (layer: Poly[], id: string): string => {
+    // Self-stroking each face closes antialiasing gaps between neighbours.
+    const fills = layer.map(q => {
+      const stroke = q.stroke ?? q.fill
+      const sw = q.sw ?? 0.75
+      return `<polygon points="${q.pts}" fill="${q.fill}" stroke="${stroke}" stroke-width="${sw}"/>`
+    }).join('')
 
-  // Self-stroking each face closes antialiasing gaps between neighbours.
-  const fills = polys.map(q => {
-    const stroke = q.stroke ?? q.fill
-    const sw = q.sw ?? 0.75
-    return `<polygon points="${q.pts}" fill="${q.fill}" stroke="${stroke}" stroke-width="${sw}"/>`
-  }).join('')
-
-  let art: string
-  if (p.seam <= 0 || p.seamStyle === 'none') {
-    art = fills
-  } else if (p.seamStyle === 'cut') {
-    // White keeps the face, black seam lines cut gaps through to the backdrop.
-    // Same paint order as the fills, so nearer blocks cover the seams of the
-    // blocks they hide.
-    const mask = polys.map(q =>
-      `<polygon points="${q.pts}" fill="#fff" stroke="#000" stroke-width="${p.seam}" stroke-linejoin="round"/>`).join('')
-    defs.push(`<mask id="seams" maskUnits="userSpaceOnUse" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}">${mask}</mask>`)
-    art = `<g mask="url(#seams)">${fills}</g>`
-  } else {
+    if (p.seam <= 0 || p.seamStyle === 'none') return fills
+    if (p.seamStyle === 'cut') {
+      // White keeps the face, black seam lines cut gaps through to the backdrop.
+      const mask = layer.map(q =>
+        `<polygon points="${q.pts}" fill="#fff" stroke="#000" stroke-width="${p.seam}" stroke-linejoin="round"/>`).join('')
+      defs.push(`<mask id="seams-${id}" maskUnits="userSpaceOnUse" x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}">${mask}</mask>`)
+      return `<g mask="url(#seams-${id})">${fills}</g>`
+    }
     const ink = p.seamStyle === 'light' ? '#ffffff' : '#1c1512'
     const op = p.seamStyle === 'light' ? 0.75 : 0.5
-    art = polys.map(q =>
+    return layer.map(q =>
       `<polygon points="${q.pts}" fill="${q.fill}" stroke="${ink}" stroke-opacity="${op}" stroke-width="${p.seam}" stroke-linejoin="round"/>`).join('')
   }
+
+  // Grid, pattern, foreground: each layer is independent and exported in the
+  // same order as the preview. The background's opacity never washes out the
+  // foreground letters painted above it.
+  const backgroundArt = backgroundPolys.length
+    ? `<g opacity="${r1(p.backgroundPatternOpacity / 100)}">${polygonArt(backgroundPolys, 'background')}</g>`
+    : ''
+  const art = backgroundArt + polygonArt(polys, 'foreground')
 
   // inset frame — the artwork is matted inside the canvas
   const pad = (p.inset / 100) * h
@@ -662,8 +708,6 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
     body.push(art)
   }
 
-  if (p.ornaments === 'perimeter') body.push(ornamentLayer(p, view))
-
   if (p.grain > 0) {
     defs.push(
       `<filter id="grain" x="0" y="0" width="100%" height="100%">` +
@@ -674,20 +718,6 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
       `filter="url(#grain)" opacity="${r1((p.grain / 100) * 0.42)}" ` +
       `style="mix-blend-mode:multiply" pointer-events="none"/>`)
   }
-
-
-  if (p.title.trim()) {
-    const tx = x + (p.titleX / 100) * w
-    const ty = y + (p.titleY / 100) * h
-    const fs = (p.titleSize / 100) * h
-    const anchor = p.titleAlign === 'left' ? 'start' : p.titleAlign === 'right' ? 'end' : 'middle'
-    body.push(
-      `<text x="${r1(tx)}" y="${r1(ty)}" fill="${p.titleColor}" text-anchor="${anchor}" ` +
-      `dominant-baseline="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="${r1(fs)}" ` +
-      `font-weight="750" letter-spacing="${r1(fs * p.titleTracking / 100)}">${escapeXml(p.title)}</text>`,
-    )
-  }
-
   if (p.frame > 0) {
     const half = p.frame / 2
     body.push(
@@ -698,60 +728,4 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${r1(x)} ${r1(y)} ${r1(w)} ${r1(h)}">` +
     (defs.length ? `<defs>${defs.join('')}</defs>` : '') + body.join('') + '</svg>'
-}
-
-function escapeXml(value: string): string {
-  return value.replace(/[&<>"']/g, ch => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
-  })[ch]!)
-}
-
-/** Seeded, intentionally simple plotter marks that remain legible at cover size. */
-function ornamentLayer(p: Params, view: Rect): string {
-  const rand = rng(Math.imul(p.seed, 0x45d9f3b) ^ 0x6c8e9cf5)
-  const size = (p.ornamentSize / 100) * view.h
-  const pad = size * 0.85
-  const marks: string[] = []
-  for (let i = 0; i < p.ornamentCount; i++) {
-    let x: number, y: number
-    if (p.ornaments === 'perimeter') {
-      const edge = i % 4
-      const t = 0.08 + rand() * 0.84
-      x = edge === 1 ? view.x + view.w - pad : edge === 3 ? view.x + pad : view.x + t * view.w
-      y = edge === 0 ? view.y + pad : edge === 2 ? view.y + view.h - pad : view.y + t * view.h
-    } else {
-      x = view.x + (0.04 + rand() * 0.92) * view.w
-      y = view.y + (0.08 + rand() * 0.84) * view.h
-    }
-    const kind = Math.floor(rand() * 7)
-    const rot = Math.floor(rand() * 4) * 45
-    const sw = Math.max(0.7, size * 0.075)
-    const common = `fill="none" stroke="${p.ornamentColor}" stroke-width="${r1(sw)}" stroke-linecap="square" stroke-linejoin="miter"`
-    let shape = ''
-    switch (kind) {
-      case 0:
-        shape = `<path d="M0 ${r1(-size * 0.45)}L${r1(size * 0.45)} 0L0 ${r1(size * 0.45)}L${r1(-size * 0.45)} 0Z" ${common}/>`
-        break
-      case 1:
-        shape = `<path d="M${r1(-size * 0.42)} 0H${r1(size * 0.42)}M0 ${r1(-size * 0.42)}V${r1(size * 0.42)}" ${common}/>`
-        break
-      case 2:
-        shape = `<circle r="${r1(size * 0.34)}" ${common}/><circle r="${r1(size * 0.1)}" fill="${p.ornamentColor}"/>`
-        break
-      case 3:
-        shape = `<path d="M${r1(-size * 0.4)} ${r1(-size * 0.35)}H${r1(-size * 0.18)}V${r1(size * 0.35)}H${r1(-size * 0.4)}M${r1(size * 0.4)} ${r1(-size * 0.35)}H${r1(size * 0.18)}V${r1(size * 0.35)}H${r1(size * 0.4)}" ${common}/>`
-        break
-      case 4:
-        shape = [-1, 0, 1].flatMap(yy => [-1, 0, 1].map(xx =>
-          `<circle cx="${r1(xx * size * 0.25)}" cy="${r1(yy * size * 0.25)}" r="${r1(sw * 0.72)}" fill="${p.ornamentColor}"/>`)).join('')
-        break
-      case 5:
-        shape = `<path d="M${r1(-size * 0.42)} ${r1(size * 0.3)}L0 ${r1(-size * 0.42)}L${r1(size * 0.42)} ${r1(size * 0.3)}Z" ${common}/>`
-        break
-      default:
-        shape = `<path d="M0 ${r1(-size * 0.42)}L${r1(size * 0.36)} ${r1(-size * 0.2)}V${r1(size * 0.25)}L0 ${r1(size * 0.46)}L${r1(-size * 0.36)} ${r1(size * 0.25)}V${r1(-size * 0.2)}ZM${r1(-size * 0.36)} ${r1(-size * 0.2)}L0 0L${r1(size * 0.36)} ${r1(-size * 0.2)}M0 0V${r1(size * 0.46)}" ${common}/>`
-    }
-    marks.push(`<g transform="translate(${r1(x)} ${r1(y)}) rotate(${rot})">${shape}</g>`)
-  }
-  return `<g opacity="${r1(p.ornamentOpacity / 100)}">${marks.join('')}</g>`
 }

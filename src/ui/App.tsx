@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BACKDROPS, BASELINES, GLYPH_SOURCES, IMAGE_CHANNELS, LIMITS, MAX_TEXT, MODES,
-  ORNAMENTS, PALETTES, RAMPS, RUNS, SEAMS, SHAPES, SIGNAL_MODES, SURFACES,
-  SYMMETRIES, TITLE_ALIGNS,
+  BACKDROPS, BACKGROUND_LAYERS, BASELINES, GLYPH_SOURCES, IMAGE_CHANNELS, LIMITS,
+  MAX_TEXT, MODES, PALETTES, RAMPS, RUNS, SEAMS, SHAPES, SIGNAL_MODES, SURFACES,
+  SYMMETRIES,
   buildScene, fromQuery, generateMask, glyphMask, normalize, preset, randomize,
   soleGlyph, surfacePreset, toQuery, tint, zoomFloor,
   type ImageSample, type Params,
@@ -167,9 +167,10 @@ export default function App() {
                   ...randomize(Math.floor(Math.random() * 99999) + 1, prev.surface),
                   // Content is not style: what you typed, drew or recorded stays.
                   surface: prev.surface, text: prev.text, custom: prev.custom,
-                  signal: prev.signal, title: prev.title,
+                  signal: prev.signal,
                   // Nor is the canvas you chose to look through.
                   aspect: prev.aspect, zoom: prev.zoom,
+                  backgroundLayer: prev.backgroundLayer,
                 }))}
               >
                 ⚡ Shuffle
@@ -381,37 +382,6 @@ export default function App() {
                 <BracketSlider label="Face contrast" value={params.contrast} onChange={v => set('contrast', v)} min={0} max={220} format={pct} />
               </Rack>
 
-              {/* ---- overlay --------------------------------------------- */}
-              <Rack label="Title & symbols">
-                <TextField
-                  label="Header text"
-                  value={params.title}
-                  onChange={v => set('title', v)}
-                  placeholder="Optional title"
-                  maxLength={MAX_TEXT}
-                  uppercase={false}
-                />
-                <Segmented label="Align" value={params.titleAlign} options={TITLE_ALIGNS} onChange={v => set('titleAlign', v)} columns={3} />
-                <div className="grid grid-cols-2 gap-2">
-                  <Scrub label="Title X" value={params.titleX} onChange={v => set('titleX', v)} min={0} max={100} unit="%" />
-                  <Scrub label="Title Y" value={params.titleY} onChange={v => set('titleY', v)} min={0} max={100} unit="%" />
-                  <Scrub label="Title size" value={params.titleSize} onChange={v => set('titleSize', v)} min={3} max={48} unit="%" />
-                  <Scrub label="Tracking" value={params.titleTracking} onChange={v => set('titleTracking', v)} min={-5} max={30} unit="%" />
-                </div>
-                <ColorField label="Title color" value={params.titleColor} onChange={v => set('titleColor', v)} />
-                <Segmented label="Symbols" value={params.ornaments} options={ORNAMENTS} onChange={v => set('ornaments', v)} columns={3} />
-                {params.ornaments !== 'none' ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Scrub label="Symbol count" value={params.ornamentCount} onChange={v => set('ornamentCount', v)} min={1} max={24} />
-                      <Scrub label="Symbol size" value={params.ornamentSize} onChange={v => set('ornamentSize', v)} min={1} max={16} unit="%" />
-                    </div>
-                    <BracketSlider label="Symbol opacity" value={params.ornamentOpacity} onChange={v => set('ornamentOpacity', v)} min={0} max={100} format={pct} />
-                    <ColorField label="Symbol color" value={params.ornamentColor} onChange={v => set('ornamentColor', v)} />
-                  </>
-                ) : null}
-              </Rack>
-
               {/* ---- canvas ------------------------------------------------ */}
               <Rack label="Canvas">
                 {/* Named for what Notion calls them rather than by ratio. Other
@@ -439,8 +409,49 @@ export default function App() {
                   <Scrub label="Frame" value={params.frame} onChange={v => set('frame', v)} min={0} max={12} step={0.5} />
                   <ColorField label="Frame col" value={params.frameColor} onChange={v => set('frameColor', v)} />
                 </div>
-                <Toggle label="Background grid" checked={!!params.gridOverlay} onChange={v => set('gridOverlay', v ? 1 : 0)} />
-                {params.gridOverlay ? (
+                <Segmented
+                  label="Background layer"
+                  value={params.backgroundLayer}
+                  options={BACKGROUND_LAYERS}
+                  onChange={v => set('backgroundLayer', v)}
+                  columns={4}
+                />
+                {params.backgroundLayer === 'pattern' || params.backgroundLayer === 'both' ? (
+                  <>
+                    <p className="font-device text-[10px] leading-relaxed text-muted">
+                      A sparse field uses the same isometric language behind the surface,
+                      while Edge reach keeps the center clear for letters.
+                    </p>
+                    <Segmented
+                      label="Pattern composition"
+                      value={params.backgroundPatternMode}
+                      options={MODES}
+                      onChange={v => set('backgroundPatternMode', v)}
+                      columns={3}
+                    />
+                    <div className="flex items-end gap-2">
+                      <div className="min-w-0 flex-1">
+                        <Scrub label="Pattern seed" value={params.backgroundPatternSeed} onChange={v => set('backgroundPatternSeed', v)} min={1} max={99999} />
+                      </div>
+                      <Button
+                        onClick={() => set('backgroundPatternSeed', Math.floor(Math.random() * 99999) + 1)}
+                        title="New background pattern"
+                      >
+                        Shuffle pattern
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Scrub label="Pattern scale" value={params.backgroundPatternGrid} onChange={v => set('backgroundPatternGrid', v)} min={4} max={26} />
+                      <Scrub label="Pattern height" value={params.backgroundPatternHeight} onChange={v => set('backgroundPatternHeight', v)} min={1} max={8} />
+                      <Scrub label="Pattern detail" value={params.backgroundPatternDetail} onChange={v => set('backgroundPatternDetail', v)} min={1} max={100} />
+                      <Scrub label="Pattern warp" value={params.backgroundPatternWarp} onChange={v => set('backgroundPatternWarp', v)} min={0} max={100} unit="%" />
+                    </div>
+                    <BracketSlider label="Pattern density" value={params.backgroundPatternCoverage} onChange={v => set('backgroundPatternCoverage', v)} min={0} max={100} format={pct} />
+                    <BracketSlider label="Edge reach" value={params.backgroundPatternReach} onChange={v => set('backgroundPatternReach', v)} min={5} max={85} format={pct} />
+                    <BracketSlider label="Pattern opacity" value={params.backgroundPatternOpacity} onChange={v => set('backgroundPatternOpacity', v)} min={0} max={100} format={pct} />
+                  </>
+                ) : null}
+                {params.backgroundLayer === 'grid' || params.backgroundLayer === 'both' ? (
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       <Scrub label="Grid size" value={params.gridSpacing} onChange={v => set('gridSpacing', v)} min={2} max={30} unit="%" />

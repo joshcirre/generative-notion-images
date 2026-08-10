@@ -15,10 +15,12 @@ Create a 1500×600 PNG in a temporary location:
 
 ```sh
 npm run generate -- --png --out /tmp/notion-cover.png \
-  --seed 42 --mode terrain --shape vignette \
-  --title "Platform Notes" --titleAlign left --titleX 12 --titleY 50 \
-  --gridOverlay 1 --gridAngle 30 --gridSkew 120 --gridFade 80 \
-  --ornaments perimeter --ornamentCount 8
+  --surface letters --text "PLATFORM" --baseline flat --fit 58 \
+  --backgroundLayer both \
+  --backgroundPatternMode terrain --backgroundPatternSeed 42 \
+  --backgroundPatternGrid 15 --backgroundPatternHeight 2 \
+  --backgroundPatternCoverage 48 --backgroundPatternReach 30 \
+  --gridAngle 30 --gridSkew 120 --gridFade 80
 ```
 
 Inspect the PNG before handing it off. Iterate by changing parameters, not the
@@ -39,9 +41,9 @@ The scene has five surfaces:
 - `voice`: a recorded envelope converted into a terrain signal. Existing
   encoded signals can render from the CLI.
 
-Every surface shares color, material, canvas, title, symbols, and background
-grid controls. The generated SVG is self-contained except for the generic font
-family used by optional title text.
+Every surface shares color, material, canvas, and independent background layer
+controls. `backgroundLayer` accepts `none`, `grid`, `pattern`, or `both`. The
+generated SVG is self-contained.
 
 ## Useful recipes
 
@@ -50,7 +52,8 @@ Square page icon:
 ```sh
 npm run generate -- --png --width 1024 --out /tmp/notion-icon.png \
   --surface letters --glyphSource generated --aspect 1 --seed 18 \
-  --depth 3 --fit 72 --ornaments perimeter --ornamentCount 5
+  --depth 3 --fit 72 --backgroundLayer pattern \
+  --backgroundPatternMode drift --backgroundPatternSeed 91
 ```
 
 Wide wordmark:
@@ -58,16 +61,18 @@ Wide wordmark:
 ```sh
 npm run generate -- --png --out /tmp/wordmark.png \
   --surface letters --text "DEVREL" --baseline flat --run rise \
-  --tracking 1 --fit 62 --gridOverlay 1 --gridOpacity 14
+  --tracking 1 --fit 62 --backgroundLayer grid --gridOpacity 14
 ```
 
-Blocks on the right with open title space on the left:
+Letters with a sparse edge pattern and open center:
 
 ```sh
-npm run generate -- --png --out /tmp/right-weighted.png \
-  --mode terrain --shape corner --shiftX 34 --zoom 120 --seed 27 \
-  --title "Release Planning" --titleAlign left --titleX 8 \
-  --gridOverlay 1 --gridAngle 30 --gridSkew 120 --gridFadeAngle 0
+npm run generate -- --png --out /tmp/letters-with-pattern.png \
+  --surface letters --text "RELEASE" --baseline flat --fit 58 \
+  --backgroundLayer pattern --backgroundPatternMode islands \
+  --backgroundPatternSeed 27 --backgroundPatternGrid 14 \
+  --backgroundPatternHeight 3 --backgroundPatternCoverage 44 \
+  --backgroundPatternReach 28 --backgroundPatternOpacity 58
 ```
 
 Generate a batch of candidates:
@@ -80,7 +85,7 @@ Rebuild a design copied from the app's URL:
 
 ```sh
 npm run generate -- --png --out /tmp/from-app.png \
-  --params "mode=weave&seed=7&gridOverlay=1&title=Architecture"
+  --params "surface=letters&text=ARCH&baseline=flat&backgroundLayer=both&backgroundPatternMode=weave&backgroundPatternSeed=7"
 ```
 
 Drop `--png` to write SVG. Use `--width N` to choose output width; height follows
@@ -92,14 +97,19 @@ Drop `--png` to write SVG. Use `--width N` to choose output width; height follow
 | Goal | Parameters |
 | --- | --- |
 | Composition | `surface`, `mode`, `shape`, `seed`, `grid`, `height`, `coverage` |
-| Open title space | `shape=vignette` or `shape=corner`, then `shiftX` / `shiftY` |
+| Letter content | `surface=letters`, `text`, `baseline`, `run`, `tracking`, `fit` |
 | Block geometry | `tilt`, `stretch`, `gap`, `depth`, `seam`, `seamStyle` |
 | Material | `occlusion`, `bevel`, `grain`, `light`, `contrast` |
 | Color | `palette`, `colorA`, `colorMid`, `colorB`, `useMid`, `bg1`, `bg2` |
-| Header text | `title`, `titleX`, `titleY`, `titleSize`, `titleAlign`, `titleColor`, `titleTracking` |
-| Generated symbols | `ornaments=perimeter|background`, `ornamentCount`, `ornamentSize`, `ornamentOpacity`, `ornamentColor` |
-| Drafting grid | `gridOverlay=1`, `gridSpacing`, `gridAngle`, `gridSkew`, `gridOpacity`, `gridFade`, `gridFadeAngle`, `gridColor` |
+| Background selection | `backgroundLayer=none|grid|pattern|both` |
+| Edge pattern | `backgroundPatternMode`, `backgroundPatternSeed`, `backgroundPatternGrid`, `backgroundPatternHeight`, `backgroundPatternCoverage`, `backgroundPatternDetail`, `backgroundPatternWarp`, `backgroundPatternReach`, `backgroundPatternOpacity` |
+| Drafting grid | `gridSpacing`, `gridAngle`, `gridSkew`, `gridOpacity`, `gridFade`, `gridFadeAngle`, `gridColor` |
 | Canvas | `aspect`, `zoom`, `shiftX`, `shiftY`, `backdrop`, `inset`, `frame` |
+
+For a letter header, start with `backgroundLayer=pattern`, `baseline=flat`, a
+pattern height of 1–3, coverage around 40–55, and reach around 25–35. Change
+`backgroundPatternSeed` to shuffle only the background without moving the
+letters. Use `backgroundLayer=both` to add the drafting grid beneath it.
 
 Use `npm run generate -- --help` for every accepted parameter. The URL and CLI
 use the same names as `Params` in `src/scene/types.ts`.
