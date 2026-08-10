@@ -8,7 +8,7 @@ final class RenderInput
 {
     public const FORMATS = ['png', 'svg'];
 
-    public const SURFACES = ['pattern', 'letters', 'text', 'voice'];
+    public const SURFACES = ['pattern', 'letters', 'image', 'text', 'voice'];
 
     public const MODES = ['terrain', 'skyline', 'waves', 'islands', 'terraces', 'drift', 'rings', 'weave'];
 
@@ -19,6 +19,10 @@ final class RenderInput
     public const BACKGROUNDS = ['none', 'grid', 'pattern', 'both'];
 
     public const PALETTES = ['laravel', 'ocean', 'forest', 'slate'];
+
+    public const PALETTE_MODES = ['ramp', 'duotone', 'banded', 'dither', 'scatter'];
+
+    public const IMAGE_CHANNELS = ['auto', 'alpha', 'dark', 'light'];
 
     /** @return array<string, mixed> */
     public static function rules(): array
@@ -34,6 +38,14 @@ final class RenderInput
             'aspect' => ['sometimes', 'numeric', 'between:1,6'],
             'layout' => ['sometimes', Rule::in(self::LAYOUTS)],
             'palette_preset' => ['sometimes', Rule::in(self::PALETTES)],
+            'palette_mode' => ['sometimes', Rule::in(self::PALETTE_MODES)],
+            'image_data' => ['sometimes', 'string', 'max:2800000', 'prohibits:audio_envelope'],
+            'image_channel' => ['sometimes', Rule::in(self::IMAGE_CHANNELS)],
+            'image_resolution' => ['sometimes', 'integer', 'between:8,48'],
+            'image_threshold' => ['sometimes', 'numeric', 'between:0,100'],
+            'image_invert' => ['sometimes', 'boolean'],
+            'audio_envelope' => ['sometimes', 'array', 'between:2,512', 'prohibits:image_data'],
+            'audio_envelope.*' => ['numeric', 'between:0,1'],
             'background' => ['sometimes', Rule::in(self::BACKGROUNDS)],
             'background_mode' => ['sometimes', Rule::in(self::MODES)],
             'background_seed' => ['sometimes', 'integer', 'between:1,1000000000'],
@@ -50,6 +62,17 @@ final class RenderInput
             'title' => ['prohibited'],
             'ornaments' => ['prohibited'],
             'grid' => ['prohibited'],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function publicMcpRules(): array
+    {
+        return [
+            ...self::rules(),
+            // Public MCP output is intentionally capped below the authenticated
+            // REST ceiling to bound CPU, memory, and response size per request.
+            'width' => ['sometimes', 'integer', 'between:128,2048'],
         ];
     }
 }

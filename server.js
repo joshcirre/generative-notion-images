@@ -22,7 +22,9 @@ const PORT = Number(process.env.PORT ?? 8080)
 const HOST = process.env.HOST || undefined
 const INDEX = join(ROOT, 'index.html')
 const RENDER_MODULE = resolve(process.env.RENDER_MODULE ?? 'runtime/render.mjs')
-const MAX_BODY = 128 * 1024
+// Public callers reach this only through the rate-limited Laravel gateway. The
+// larger ceiling permits a bounded base64 source image plus render parameters.
+const MAX_BODY = 3 * 1024 * 1024
 let renderer
 
 const TYPES = {
@@ -103,7 +105,7 @@ async function handleRender(req, res) {
   try {
     renderer ??= import(pathToFileURL(RENDER_MODULE).href)
     const { renderImage } = await renderer
-    const output = renderImage(await readJson(req))
+    const output = await renderImage(await readJson(req))
     res.writeHead(200, {
       'content-type': output.mimeType,
       'content-length': output.body.byteLength,

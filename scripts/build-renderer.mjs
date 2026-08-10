@@ -12,5 +12,5 @@ await build({
   sourcemap: true,
   // Keep the native resvg package in node_modules; everything authored in this
   // repository is bundled so the production server does not need TypeScript.
-  external: ['@resvg/resvg-js'],
+  external: ['@resvg/resvg-js', 'sharp'],
 })

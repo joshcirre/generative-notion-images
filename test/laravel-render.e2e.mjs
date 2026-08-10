@@ -58,7 +58,7 @@ async function stop(child) {
   if (child.exitCode === null) child.kill('SIGKILL')
 }
 
-test('Laravel authenticates and proxies a real letter-background render', async t => {
+test('Laravel exposes public MCP media rendering and protects REST', async t => {
   const rendererPort = await openPort()
   const apiPort = await openPort()
   const rendererToken = 'renderer-e2e-secret'
@@ -93,6 +93,53 @@ test('Laravel authenticates and proxies a real letter-background render', async 
     const endpoint = `http://127.0.0.1:${apiPort}/api/renders`
     const unauthorized = await fetch(endpoint, { method: 'POST' })
     assert.equal(unauthorized.status, 401)
+
+    const mcpEndpoint = `http://127.0.0.1:${apiPort}/mcp/notion-images`
+    const initialize = await fetch(mcpEndpoint, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json, text/event-stream',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1, method: 'initialize',
+        params: {
+          protocolVersion: '2025-06-18', capabilities: {},
+          clientInfo: { name: 'e2e', version: '1.0' },
+        },
+      }),
+    })
+    assert.equal(initialize.status, 200)
+    assert.equal((await initialize.json()).result.serverInfo.name, 'Notion Image Server')
+
+    // Public MCP can carry a bounded source image all the way through Laravel,
+    // the private Node renderer, and back as image content without a token.
+    const toolCall = await fetch(mcpEndpoint, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json, text/event-stream',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 2, method: 'tools/call',
+        params: {
+          name: 'generate-notion-image',
+          arguments: {
+            format: 'png', width: 256, palette_mode: 'dither',
+            image_channel: 'dark', image_threshold: 0,
+            image_data: 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAGElEQVQImWNgYGD4DwIMAQEB/0+cOPEfAE9oCkJxI1dwAAAAAElFTkSuQmCC',
+          },
+        },
+      }),
+    })
+    const toolResult = await toolCall.json()
+    const imageContent = toolResult.result?.content?.find(content => content.type === 'image')
+    assert.equal(toolCall.status, 200)
+    assert.equal(imageContent?.mimeType, 'image/png', JSON.stringify(toolResult))
+    assert.deepEqual(
+      [...Buffer.from(imageContent.data, 'base64').subarray(0, 8)],
+      [137, 80, 78, 71, 13, 10, 26, 10],
+    )
 
     const response = await fetch(endpoint, {
       method: 'POST',

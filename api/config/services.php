@@ -5,6 +5,7 @@ return [
     'agent_api' => [
         'token' => env('AGENT_API_TOKEN'),
         'rate_limit' => (int) env('AGENT_RATE_LIMIT', 30),
+        'mcp_rate_limit' => (int) env('MCP_RATE_LIMIT', 10),
     ],
 
     'notion_image_renderer' => [

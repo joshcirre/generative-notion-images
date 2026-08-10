@@ -28,5 +28,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) config('services.agent_api.rate_limit', 30))
                 ->by(hash('sha256', (string) $identity));
         });
+
+        RateLimiter::for('public-mcp-renders', function (Request $request): Limit {
+            if ($request->input('method') !== 'tools/call'
+                || $request->input('params.name') !== 'generate-notion-image') {
+                return Limit::none();
+            }
+
+            return Limit::perMinute((int) config('services.agent_api.mcp_rate_limit', 10))
+                ->by(hash('sha256', (string) $request->ip()));
+        });
     }
 }

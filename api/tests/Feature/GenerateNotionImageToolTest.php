@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Mcp\Servers\NotionImageServer;
 use App\Mcp\Tools\GenerateNotionImageTool;
+use App\Support\RenderInput;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Tests\TestCase;
 
@@ -48,5 +50,19 @@ class GenerateNotionImageToolTest extends TestCase
                 ->where('params.backgroundPatternMode', 'drift')
                 ->where('params.backgroundPatternSeed', 73)
                 ->etc());
+    }
+
+    public function test_source_image_and_audio_inputs_are_mutually_exclusive(): void
+    {
+        $input = [
+            'image_data' => 'aW1hZ2U=',
+            'audio_envelope' => [0, 1],
+        ];
+        $validator = Validator::make($input, RenderInput::rules());
+
+        $this->assertTrue($validator->fails());
+        $this->assertTrue($validator->errors()->has('image_data'));
+        $this->assertTrue($validator->errors()->has('audio_envelope'));
+        NotionImageServer::tool(GenerateNotionImageTool::class, $input)->assertHasErrors();
     }
 }

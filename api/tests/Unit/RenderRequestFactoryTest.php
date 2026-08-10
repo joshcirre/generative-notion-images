@@ -40,4 +40,31 @@ class RenderRequestFactoryTest extends TestCase
         $this->assertSame('both', $payload['params']['backgroundLayer']);
         $this->assertSame(18, $payload['params']['backgroundPatternReach']);
     }
+
+    public function test_image_data_selects_the_image_surface_and_stays_outside_params(): void
+    {
+        $payload = (new RenderRequestFactory)->make([
+            'image_data' => 'aW1hZ2UtYnl0ZXM=',
+            'image_channel' => 'dark',
+            'image_resolution' => 32,
+            'palette_mode' => 'dither',
+        ]);
+
+        $this->assertSame('image', $payload['params']['surface']);
+        $this->assertSame('dark', $payload['params']['imageChannel']);
+        $this->assertSame(32, $payload['params']['imageResolution']);
+        $this->assertSame('dither', $payload['params']['palette']);
+        $this->assertSame('aW1hZ2UtYnl0ZXM=', $payload['imageData']);
+        $this->assertArrayNotHasKey('imageData', $payload['params']);
+    }
+
+    public function test_audio_envelope_becomes_a_frozen_voice_signal(): void
+    {
+        $payload = (new RenderRequestFactory)->make([
+            'audio_envelope' => [0, 0.5, 1, 0.25],
+        ]);
+
+        $this->assertSame('voice', $payload['params']['surface']);
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9_-]{48}$/', $payload['params']['signal']);
+    }
 }

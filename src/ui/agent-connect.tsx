@@ -43,17 +43,17 @@ export function AgentConnectDialog({
 
 Server URL: ${MCP_URL}
 Transport: Streamable HTTP
-Authentication: Authorization: Bearer <AGENT_API_TOKEN>
+Authentication: None — this MCP server is public
 Tool: generate-notion-image
 
-Use the tool to generate reproducible isometric Notion covers and icons. Start with a letters layout and a sparse background pattern. Return the generated PNG or SVG to me.`
+Use the tool to turn my natural-language art direction into a reproducible isometric Notion cover or icon. It supports block letters, generated patterns, source-image mosaics, and text- or voice-signal terrain. For an attached image, send its base64 bytes as image_data. For audio, extract a normalized loudness envelope and send audio_envelope. Start with a letters layout and a sparse background pattern unless my prompt asks for another surface. Return the generated PNG or SVG to me.`
     }
 
     return `Remote MCP server
 ${MCP_URL}
 
-Authorization header
-Bearer <AGENT_API_TOKEN>
+Authentication
+None — public endpoint
 
 Available tool
 generate-notion-image`
@@ -76,7 +76,7 @@ generate-notion-image`
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex items-center gap-2 font-device text-[9px] tracking-[0.18em] text-muted uppercase">
                 <span className="size-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                Remote renderer online
+                Public MCP online
               </div>
               <h2 id="agent-dialog-title" className="font-pixel text-sm tracking-[0.1em] text-ink uppercase sm:text-base">
                 Connect an agent
@@ -105,7 +105,7 @@ generate-notion-image`
             <div className="grid grid-cols-3 gap-px border border-sand-7 bg-sand-6" role="tablist" aria-label="Connection method">
               {([
                 ['mcp', 'MCP'],
-                ['rest', 'REST API'],
+                ['rest', 'REST + token'],
                 ['agent', 'Agent prompt'],
               ] as const).map(([value, label]) => (
                 <button
@@ -135,24 +135,10 @@ generate-notion-image`
               </pre>
             </section>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="border-l-2 border-primary bg-white px-3 py-2">
-                <h3 className="font-pixel text-[9px] tracking-wide text-ink uppercase">Keep the token private</h3>
-                <p className="mt-1 font-device text-[10px] leading-relaxed text-muted">
-                  Copy <code>AGENT_API_TOKEN</code> from the Laravel API environment into your agent&rsquo;s secret store. It is intentionally never embedded here.
-                </p>
-              </div>
-              <div className="border-l-2 border-ink bg-white px-3 py-2">
-                <h3 className="font-pixel text-[9px] tracking-wide text-ink uppercase">One tool, full renderer</h3>
-                <p className="mt-1 font-device text-[10px] leading-relaxed text-muted">
-                  <code>generate-notion-image</code> returns image content directly, so a database and storage bucket are not required.
-                </p>
-              </div>
-            </div>
           </div>
 
           <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-sand-7 px-4 py-3 font-device text-[9px] text-muted sm:px-5">
-            <span>API STATUS / AUTHENTICATED</span>
+            <span>MCP STATUS / PUBLIC / RATE LIMITED</span>
             <a
               href="https://github.com/joshcirre/generative-notion-images/blob/main/api/README.md"
               target="_blank"

@@ -8,7 +8,7 @@ duplicating the TypeScript scene engine.
 
 ```text
 Agent or API client
-  → Laravel token authentication
+  → public MCP or token-authenticated REST
   → agent-friendly parameter translation
   → protected Node POST /api/render
   → PNG or SVG returned to the caller
@@ -44,6 +44,7 @@ Configure these values in `api/.env`:
 ```dotenv
 AGENT_API_TOKEN=agent-secret
 AGENT_RATE_LIMIT=30
+MCP_RATE_LIMIT=10
 RENDERER_URL=http://127.0.0.1:8080
 RENDERER_TOKEN=renderer-secret
 ```
@@ -86,7 +87,14 @@ curl --request POST http://127.0.0.1:8000/api/renders \
 | `text` | Up to 48 characters built from blocks | `DR` |
 | `layout` | `header`, `diagonal`, `icon`, `pattern` | `header` |
 | `palette_preset` | `laravel`, `ocean`, `forest`, `slate` | `laravel` |
-| `surface` | `pattern`, `letters`, `text`, `voice` | layout-controlled |
+| `palette_mode` | `ramp`, `duotone`, `banded`, `dither`, `scatter` | `ramp` |
+| `surface` | `pattern`, `letters`, `image`, `text`, `voice` | layout-controlled |
+| `image_data` | Raw base64 or base64 `data:image` URL; 2 MB decoded maximum | none |
+| `image_channel` | `auto`, `alpha`, `dark`, `light` | `auto` |
+| `image_resolution` | 8–48 cells along the longest edge | 28 |
+| `image_threshold` | 0–100 | 10 |
+| `image_invert` | boolean | `false` |
+| `audio_envelope` | 2–512 normalized loudness values from 0–1 | none |
 | `mode` | Any generator composition | `terrain` |
 | `shape` | Any generator silhouette | `full` |
 | `seed` | 1–1,000,000,000 | 1 |
@@ -109,16 +117,15 @@ setting, using the camelCase names from `src/scene/types.ts`.
 
 The removed `title`, `ornaments`, and boolean `grid` fields return a validation
 error. Use `text` for isometric letterforms and `background` for independent
-grid or edge-pattern layers. Uploaded images remain browser-local because their
-source pixels are not part of a scene request.
+grid or edge-pattern layers.
 
 ## MCP
 
-The remote MCP endpoint is:
+The remote MCP endpoint is public and requires no account, token, or custom
+headers:
 
 ```text
 POST /mcp/notion-images
-Authorization: Bearer AGENT_API_TOKEN
 ```
 
 It exposes one tool:
@@ -126,6 +133,15 @@ It exposes one tool:
 ```text
 generate-notion-image
 ```
+
+The agent translates ordinary visual direction into the tool's design fields.
+An attached PNG, JPEG, WebP, or SVG can be sent as `image_data` for a true
+shade-to-isometric mosaic. The source is limited, decoded in memory, and never
+stored. For audio, the agent sends a normalized `audio_envelope`; the API
+resamples it into a compact reproducible voice signal and discards the source.
+
+Public MCP output is capped at 2048px and rendering calls are limited per IP.
+Protocol initialization and tool discovery do not consume the render limit.
 
 The result contains:
 
@@ -162,15 +178,17 @@ APP_ENV=production
 APP_DEBUG=false
 AGENT_API_TOKEN=<agent-facing-secret>
 AGENT_RATE_LIMIT=30
+MCP_RATE_LIMIT=10
 RENDERER_URL=https://<generator-domain>
 RENDERER_TOKEN=<shared-renderer-secret>
 RENDERER_TIMEOUT=30
 ```
 
-Use separate secrets for the public agent surface and the private renderer.
-Both applications should run in the same Cloud region. The default file cache
-works for one API instance; set `CACHE_STORE=redis` when rate limits must be
-shared across multiple instances.
+`AGENT_API_TOKEN` protects the optional REST surface. MCP is public, but its
+rendering rate is limited per IP. `RENDERER_TOKEN` remains private and must
+match the generator's `RENDER_API_TOKEN`. Both applications should run in the
+same Cloud region. The default file cache works for one API instance; set
+`CACHE_STORE=redis` when rate limits must be shared across multiple instances.
 
 ## Verification
 

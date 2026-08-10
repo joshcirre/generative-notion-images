@@ -8,6 +8,12 @@ Remote agents may instead use the Laravel MCP server under `api/`. Its
 Use the CLI for local batch work and MCP when the caller does not have repository
 or shell access.
 
+The hosted MCP endpoint is public and does not require authentication:
+
+```text
+https://generative-notion-images-api-production-rz9lym.laravel.cloud/mcp/notion-images
+```
+
 ## Generate through Laravel MCP
 
 Call `generate-notion-image` with the small agent-facing vocabulary. This
@@ -30,6 +36,16 @@ Use `layout=diagonal` for letters that follow an isometric axis,
 `layout=icon` for a square mark, or `layout=pattern` for no letters. Change
 `background_seed` to shuffle only the background. The tool also accepts scale,
 height, density, detail, warp, reach, and opacity with the `background_` prefix.
+
+For an image attached to the agent, pass its bytes as raw base64 or a
+`data:image/...;base64,...` URL in `image_data`. This selects the image surface;
+use `image_channel`, `image_resolution`, `image_threshold`, `image_invert`, and
+`palette_mode=dither` to tune the isometric mosaic. Source bytes are decoded in
+memory and never stored.
+
+For audio, extract 2–512 normalized loudness samples between 0 and 1 and pass
+them as `audio_envelope`. The API freezes that envelope into the 48-sample voice
+signal, so the output remains reproducible without retaining the audio.
 
 For advanced work, pass renderer parameters in `params`; those values win over
 the convenience fields. Do not use `title`, `ornaments`, or the old boolean
@@ -66,9 +82,9 @@ The scene has five surfaces:
 - `pattern`: generated terrain, skyline, waves, islands, terraces, drift,
   rings, or weave.
 - `letters`: typed 5×7 block letters or a seeded abstract mark.
-- `image`: a browser-local upload converted into an isometric mosaic. This
-  surface is not available from the CLI because the source pixels are not part
-  of scene parameters.
+- `image`: a source image converted into an isometric mosaic. Editor uploads
+  remain browser-local; public MCP accepts bounded base64 source bytes for one
+  in-memory render. The CLI does not accept source pixels yet.
 - `text`: typed words converted into a terrain signal.
 - `voice`: a recorded envelope converted into a terrain signal. Existing
   encoded signals can render from the CLI.
@@ -156,9 +172,10 @@ Run `npm run dev`, choose the **Image** surface, and drop a PNG, JPG, WebP, or
 SVG into the panel. Tune `imageChannel`, `imageResolution`, `imageThreshold`,
 `imageInvert`, `depth`, and `fit`, then export from the browser.
 
-The image never uploads. A Laravel Cloud bucket is only needed if the user asks
-for persistence, sharing, or server/CLI rendering of uploaded images. Do not add
-storage for ordinary local conversion.
+The editor image never uploads. MCP can receive source bytes for one transient
+server render, but neither path persists them. A Laravel Cloud bucket is only
+needed if the user asks for originals or output at stable URLs. Do not add
+storage for ordinary conversion.
 
 ## Changing the generator
 

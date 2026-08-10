@@ -28,8 +28,9 @@ cursor.
 
 Every generated design is a pure function of its parameters. The same seed
 always returns the same image, which is why a URL and a CLI flag set can both
-reproduce whatever you land on. Uploaded image pixels are the deliberate
+reproduce whatever you land on. Images uploaded in the editor are the deliberate
 exception: they stay in the current browser tab and are not put in the URL.
+Remote MCP callers may send bounded source-image bytes for one in-memory render.
 
 | Composition | |
 | --- | --- |
@@ -99,9 +100,9 @@ either replace the terrain or just ripple through it.
 
 Switch **Surface** to `image`, then choose or drop an image. The browser decodes
 and downsamples it locally; no request, storage bucket, or server is involved.
-The sampled pixels disappear when the tab is reloaded. A bucket is only needed
-later if images must survive a session, be shared with somebody else, or render
-from the CLI.
+The sampled pixels disappear when the tab is reloaded. Public MCP can accept
+source bytes for a single in-memory render without storing them. A bucket is
+only needed later if originals or generated output must persist at a stable URL.
 
 Each included source pixel becomes an extruded isometric block. **Resolution**
 sets the sample along the image's longest edge, **Threshold** removes weak
@@ -190,9 +191,11 @@ results look deliberate instead of noisy.
 remote agents without rewriting the TypeScript scene engine. It provides:
 
 - `POST /api/renders` for authenticated REST rendering.
-- `/mcp/notion-images` with a `generate-notion-image` MCP tool.
+- Public, no-auth `/mcp/notion-images` with a `generate-notion-image` MCP tool.
 - Agent-friendly letter layouts, background layers, and color presets plus full
   parameter overrides.
+- In-memory source-image mosaics and normalized audio-envelope terrain for
+  multimodal agents; source media is never persisted.
 - PNG or SVG content returned directly to the caller; storage is optional.
 
 Laravel calls the root Node application's protected `POST /api/render`
@@ -209,7 +212,8 @@ deploy independently.
 Cloud boots the root application with `npm start` and puts nginx in front.
 `server.js` listens on `$PORT`, serves the build in `public/`, and loads the
 precompiled renderer from `runtime/`. Runtime dependencies are limited to the
-native SVG-to-PNG converter; Vite and TypeScript remain development-only.
+native SVG-to-PNG and source-image decoders; Vite and TypeScript remain
+development-only.
 
 Two things keep it from dying quietly behind the proxy:
 
@@ -226,9 +230,10 @@ no deploy command is needed. Set `RENDER_API_TOKEN` in production. `PORT`,
 `HOST`, `STATIC_ROOT`, and `RENDER_MODULE` are overridable.
 
 Create the Laravel Cloud API application from the same repository with `/api`
-as its root directory. Configure `AGENT_API_TOKEN`, `AGENT_RATE_LIMIT`,
+as its root directory. Configure `AGENT_API_TOKEN`, `AGENT_RATE_LIMIT`, `MCP_RATE_LIMIT`,
 `RENDERER_URL`, and `RENDERER_TOKEN`; the last value must match the generator's
-`RENDER_API_TOKEN`.
+`RENDER_API_TOKEN`. `AGENT_API_TOKEN` protects REST only; public MCP callers do
+not need it.
 
 ## Generating outside the browser
 
