@@ -16,6 +16,7 @@ import {
 import { useMicSignal } from './useMicSignal'
 import { exportPNG, exportSVG } from './export'
 import { sampleImage } from './image'
+import { AgentConnectDialog } from './agent-connect'
 
 const pct = (v: number) => `${v}%`
 const EXPORT_WIDTHS = (aspect: number) => (aspect === 1 ? [512, 1024, 2048] : [1500, 3000])
@@ -28,6 +29,7 @@ export default function App() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageSample, setImageSample] = useState<ImageSample | null>(null)
   const [imageError, setImageError] = useState('')
+  const [agentConnectOpen, setAgentConnectOpen] = useState(false)
 
   const set = useCallback(<K extends keyof Params>(key: K, value: Params[K]) => {
     setParams(prev => normalize({ ...prev, [key]: value }))
@@ -497,6 +499,13 @@ export default function App() {
               <span className="hidden min-w-0 sm:flex">
                 <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
               </span>
+              <button
+                type="button"
+                onClick={() => setAgentConnectOpen(true)}
+                className="shrink-0 border border-primary bg-primary px-1.5 py-0.5 font-device text-[9px] tracking-wide text-white uppercase transition-colors hover:bg-primary-deep"
+              >
+                Connect agent
+              </button>
               <a
                 className="ml-auto hidden shrink-0 hover:text-primary md:inline"
                 href="https://github.com/joshcirre/generative-notion-images"
@@ -518,6 +527,7 @@ export default function App() {
           </div>
         </DeviceFace>
       </DeviceBody>
+      <AgentConnectDialog open={agentConnectOpen} onClose={() => setAgentConnectOpen(false)} />
     </div>
   )
 }
