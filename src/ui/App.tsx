@@ -495,10 +495,6 @@ export default function App() {
             </div>
 
             <StatusBar>
-              <CopyLine label="URL" value={href} />
-              <span className="hidden min-w-0 sm:flex">
-                <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
-              </span>
               <button
                 type="button"
                 onClick={() => setAgentConnectOpen(true)}
@@ -506,6 +502,10 @@ export default function App() {
               >
                 Connect agent
               </button>
+              <CopyLine label="URL" value={href} />
+              <span className="hidden min-w-0 sm:flex">
+                <CopyLine label="CLI" value={`npm run generate -- --png --params "${query}"`} />
+              </span>
               <a
                 className="ml-auto hidden shrink-0 hover:text-primary md:inline"
                 href="https://github.com/joshcirre/generative-notion-images"
