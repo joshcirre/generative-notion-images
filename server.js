@@ -9,7 +9,9 @@
 
 import { createReadStream, existsSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { timingSafeEqual } from 'node:crypto'
 import { extname, join, resolve, sep } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const ROOT = resolve(process.env.STATIC_ROOT ?? 'public')
 const PORT = Number(process.env.PORT ?? 8080)
@@ -19,6 +21,9 @@ const PORT = Number(process.env.PORT ?? 8080)
 // host makes Node bind :: dual-stack, which answers on both.
 const HOST = process.env.HOST || undefined
 const INDEX = join(ROOT, 'index.html')
+const RENDER_MODULE = resolve(process.env.RENDER_MODULE ?? 'runtime/render.mjs')
+const MAX_BODY = 128 * 1024
+let renderer
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -57,7 +62,73 @@ function resolveFile(urlPath) {
   return { path: full, size: stat.size }
 }
 
-const server = createServer((req, res) => {
+function sendJson(res, status, body) {
+  const json = JSON.stringify(body)
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(json),
+    'cache-control': 'no-store',
+  }).end(json)
+}
+
+function hasRenderAccess(req) {
+  const expected = process.env.RENDER_API_TOKEN
+  // Local development works without ceremony. Production refuses to expose a
+  // rendering primitive until an explicit shared secret is configured.
+  if (!expected) return process.env.NODE_ENV !== 'production'
+  const supplied = req.headers.authorization?.replace(/^Bearer\s+/i, '') ?? ''
+  const a = Buffer.from(supplied), b = Buffer.from(expected)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+async function readJson(req) {
+  const chunks = []
+  let size = 0
+  for await (const chunk of req) {
+    size += chunk.length
+    if (size > MAX_BODY) throw new Error('request body exceeds 128 KB')
+    chunks.push(chunk)
+  }
+  if (!chunks.length) return {}
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
+
+async function handleRender(req, res) {
+  if (!hasRenderAccess(req)) {
+    sendJson(res, process.env.RENDER_API_TOKEN ? 401 : 503, {
+      error: process.env.RENDER_API_TOKEN ? 'Invalid render token.' : 'RENDER_API_TOKEN is required in production.',
+    })
+    return
+  }
+  try {
+    renderer ??= import(pathToFileURL(RENDER_MODULE).href)
+    const { renderImage } = await renderer
+    const output = renderImage(await readJson(req))
+    res.writeHead(200, {
+      'content-type': output.mimeType,
+      'content-length': output.body.byteLength,
+      'cache-control': 'no-store',
+      'x-render-width': String(output.width),
+      'x-render-height': String(output.height),
+      'x-render-format': output.format,
+      'x-content-type-options': 'nosniff',
+    }).end(output.body)
+  } catch (error) {
+    sendJson(res, 422, { error: error instanceof Error ? error.message : 'Unable to render image.' })
+  }
+}
+
+const server = createServer(async (req, res) => {
+  const pathname = (req.url ?? '/').split('?')[0]
+  if (pathname === '/api/render') {
+    if (req.method !== 'POST') {
+      res.writeHead(405, { allow: 'POST' }).end()
+      return
+    }
+    await handleRender(req, res)
+    return
+  }
+
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { allow: 'GET, HEAD' }).end()
     return
@@ -74,7 +145,7 @@ const server = createServer((req, res) => {
 
   // Cheap liveness endpoint, matching Laravel's convention, so probes don't
   // read the shell off disk on every check.
-  if (req.url === '/up' || req.url === '/health') {
+  if (pathname === '/up' || pathname === '/health') {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' })
       .end('ok\n')
     return

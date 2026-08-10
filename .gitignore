@@ -1,6 +1,7 @@
-node_modules
-public
-dist
-out
+/node_modules
+/public
+/dist
+/out
+/runtime
 .DS_Store
 .gstack
