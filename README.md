@@ -10,12 +10,13 @@ npm run dev
 
 ## How it works
 
-Four **surfaces** draw onto one isometric grid, and everything downstream —
+Five **surfaces** draw onto one isometric grid, and everything downstream —
 light, material, palette, projection, canvas, export — is shared between them.
 
 - **Pattern** — a generative height field. Eight compositions shape it, five
   silhouettes carve it.
 - **Letters** — typed block letters, or an abstract mark generated from the seed.
+- **Image** — a local raster or SVG sampled into an extruded isometric mosaic.
 - **Text** — the words themselves become the terrain profile. No letterforms.
 - **Voice** — record from the microphone and the envelope becomes the terrain.
 
@@ -25,9 +26,10 @@ stacks otherwise, so a portrait phone or tablet puts the artwork on top and
 scrolls only the controls. Value handles scrub under a finger as well as a
 cursor.
 
-Every design is a pure function of its parameters. The same seed always returns
-the same image, which is why a URL and a CLI flag set can both reproduce
-whatever you land on.
+Every generated design is a pure function of its parameters. The same seed
+always returns the same image, which is why a URL and a CLI flag set can both
+reproduce whatever you land on. Uploaded image pixels are the deliberate
+exception: they stay in the current browser tab and are not put in the URL.
 
 | Composition | |
 | --- | --- |
@@ -93,12 +95,43 @@ and the trace would read as stripes rather than a silhouette. `Signal vs. noise`
 crossfades between the chosen composition and the trace, so a waveform can
 either replace the terrain or just ripple through it.
 
+## Image mosaics
+
+Switch **Surface** to `image`, then choose or drop an image. The browser decodes
+and downsamples it locally; no request, storage bucket, or server is involved.
+The sampled pixels disappear when the tab is reloaded. A bucket is only needed
+later if images must survive a session, be shared with somebody else, or render
+from the CLI.
+
+Each included source pixel becomes an extruded isometric block. **Resolution**
+sets the sample along the image's longest edge, **Threshold** removes weak
+pixels, **Depth** controls the extrusion, and the normal palette maps source
+shade onto the block faces. `Auto` reads alpha for transparent artwork and edge
+contrast for opaque images; `Alpha`, `Dark`, and `Light` let you select the mask
+explicitly. `Invert` flips that selection.
+
+## Titles, symbols, and background grids
+
+**Title & symbols** is a screen-space layer independent of the selected
+surface. A header can therefore keep its generated blocks while adding ordinary
+title text with its own position, alignment, size, tracking, and color. Seeded
+plotter symbols can sit around the perimeter or scatter behind the artwork;
+their placement changes predictably with the scene seed.
+
+Enable **Background grid** under Canvas to add two line families behind the
+artwork. Size controls their spacing, Direction rotates the first family, and
+Skew controls the angle to the second. Opacity, fade direction, and directional
+fade can create anything from an even drafting grid to lines that emerge from
+one side of a cover. Grid color is independent of the artwork palette.
+
 ## Parameters
 
 Grouped the way the panel groups them.
 
 - **Type** (letters) — glyph source, text or symmetry/density, baseline, run,
   depth, tracking, fit, custom glyph
+- **Image** — local file, read channel, resolution, threshold, invert, depth,
+  run, fit
 - **Text / Voice** — source text or recording, trace mode, band, smoothing,
   height, signal vs. noise, grid, coverage
 - **Field** (pattern) — composition, shape, seed, grid, height, coverage,
@@ -109,8 +142,10 @@ Grouped the way the panel groups them.
 - **Color** — 12 ramps, palette mode (`ramp` / `duotone` / `banded` / `scatter`),
   ground / mid / peak stops, ramp curve, hue drift, saturation, light angle,
   face contrast
+- **Title & symbols** — overlay text, placement, typography, seeded perimeter or
+  background symbols
 - **Canvas** — format (header / icon), zoom, backdrop mode and gradient angle,
-  inset, frame, nudge
+  skewable/fadeable background grid, inset, frame, nudge
 
 **Zoom** scales the canvas over the artwork rather than the artwork itself: the
 blocks keep their world size, so pulling back reveals more and smaller ones and

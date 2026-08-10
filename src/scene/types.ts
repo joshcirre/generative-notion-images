@@ -4,7 +4,7 @@
 // Long enough to fill a header with a phrase, not just a monogram.
 export const MAX_TEXT = 48
 
-export const SURFACES = ['pattern', 'letters', 'text', 'voice'] as const
+export const SURFACES = ['pattern', 'letters', 'image', 'text', 'voice'] as const
 export const RUNS = ['rise', 'fall'] as const
 export const BASELINES = ['grid', 'flat'] as const
 export const GLYPH_SOURCES = ['typed', 'generated'] as const
@@ -17,6 +17,9 @@ export const SHAPES = ['full', 'island', 'ridge', 'corner', 'vignette'] as const
 export const PALETTES = ['ramp', 'duotone', 'banded', 'scatter'] as const
 export const SEAMS = ['cut', 'light', 'dark', 'none'] as const
 export const BACKDROPS = ['gradient', 'solid', 'none'] as const
+export const TITLE_ALIGNS = ['left', 'center', 'right'] as const
+export const ORNAMENTS = ['none', 'perimeter', 'background'] as const
+export const IMAGE_CHANNELS = ['auto', 'alpha', 'dark', 'light'] as const
 
 export type Surface = (typeof SURFACES)[number]
 export type Run = (typeof RUNS)[number]
@@ -29,6 +32,16 @@ export type Shape = (typeof SHAPES)[number]
 export type Palette = (typeof PALETTES)[number]
 export type SeamStyle = (typeof SEAMS)[number]
 export type Backdrop = (typeof BACKDROPS)[number]
+export type TitleAlign = (typeof TITLE_ALIGNS)[number]
+export type OrnamentMode = (typeof ORNAMENTS)[number]
+export type ImageChannel = (typeof IMAGE_CHANNELS)[number]
+
+/** A decoded image held in browser memory. It never enters Params or a URL. */
+export type ImageSample = {
+  width: number
+  height: number
+  rgba: Uint8ClampedArray
+}
 
 export type Params = {
   // which generator drives the design
@@ -55,6 +68,13 @@ export type Params = {
   tracking: number   // extra cells between glyphs
   fit: number        // wordmark height as a % of the canvas
   custom: string     // 35-char 0/1 mask overriding a single glyph, '' = off
+
+  // uploaded image (surface: 'image'). The pixels themselves stay outside the
+  // parameter object; these knobs describe how that temporary source is read.
+  imageChannel: ImageChannel
+  imageThreshold: number
+  imageResolution: number
+  imageInvert: number
 
   // field (surface: 'pattern')
   mode: Mode
@@ -106,6 +126,33 @@ export type Params = {
   frameColor: string
   shiftX: number
   shiftY: number
+
+  // screen-space title, independent of the generated surface beneath it
+  title: string
+  titleX: number
+  titleY: number
+  titleSize: number
+  titleAlign: TitleAlign
+  titleColor: string
+  titleTracking: number
+
+  // seeded symbols distributed around the edge or through the background
+  ornaments: OrnamentMode
+  ornamentCount: number
+  ornamentSize: number
+  ornamentOpacity: number
+  ornamentColor: string
+
+  // two line families form a skewable grid behind the artwork. Fade controls
+  // how much of the canvas the grid travels through before disappearing.
+  gridOverlay: number
+  gridSpacing: number
+  gridAngle: number
+  gridSkew: number
+  gridOpacity: number
+  gridFade: number
+  gridFadeAngle: number
+  gridColor: string
 }
 
 export const DEFAULTS: Params = {
@@ -113,6 +160,7 @@ export const DEFAULTS: Params = {
   signal: '', signalMode: 'ridge', signalGain: 100, signalBand: 3, signalSmooth: 2,
   glyphSource: 'typed', glyphSymmetry: 'mirror', glyphDensity: 45,
   text: 'DR', run: 'rise', baseline: 'grid', depth: 2, tracking: 1, fit: 62, custom: '',
+  imageChannel: 'auto', imageThreshold: 16, imageResolution: 24, imageInvert: 0,
 
   mode: 'terrain', shape: 'full', seed: 1,
   grid: 10, height: 6, coverage: 70, detail: 38, octaves: 4,
@@ -128,27 +176,37 @@ export const DEFAULTS: Params = {
 
   aspect: 2.5, zoom: 100, backdrop: 'gradient', bg1: '#ffe2dd', bg2: '#f0d1c9', bgAngle: 135,
   inset: 0, frame: 0, frameColor: '#c42602', shiftX: 0, shiftY: 0,
+
+  title: '', titleX: 50, titleY: 50, titleSize: 14, titleAlign: 'center',
+  titleColor: '#21201c', titleTracking: 0,
+  ornaments: 'none', ornamentCount: 8, ornamentSize: 5, ornamentOpacity: 45,
+  ornamentColor: '#c42602',
+  gridOverlay: 0, gridSpacing: 9, gridAngle: 30, gridSkew: 120,
+  gridOpacity: 18, gridFade: 70, gridFadeAngle: 0, gridColor: '#21201c',
 }
 
 // Field values are numbers unless listed here, which keeps parsing honest when
 // parameters arrive as strings from a URL or the command line.
 export const STRING_KEYS = [
   'surface', 'signal', 'signalMode', 'glyphSource', 'glyphSymmetry',
-  'text', 'run', 'baseline', 'custom',
+  'text', 'run', 'baseline', 'custom', 'imageChannel',
   'mode', 'shape', 'palette', 'seamStyle', 'backdrop',
   'colorA', 'colorMid', 'colorB', 'bg1', 'bg2', 'frameColor',
+  'title', 'titleAlign', 'titleColor', 'ornaments', 'ornamentColor', 'gridColor',
 ] as const
 
 export const ENUMS: Partial<Record<keyof Params, readonly string[]>> = {
   surface: SURFACES, run: RUNS, baseline: BASELINES,
   signalMode: SIGNAL_MODES, glyphSource: GLYPH_SOURCES, glyphSymmetry: SYMMETRIES,
   mode: MODES, shape: SHAPES, palette: PALETTES, seamStyle: SEAMS, backdrop: BACKDROPS,
+  imageChannel: IMAGE_CHANNELS, titleAlign: TITLE_ALIGNS, ornaments: ORNAMENTS,
 }
 
 // Hard bounds, applied wherever parameters enter the system.
 export const LIMITS: Partial<Record<keyof Params, [number, number]>> = {
   signalGain: [0, 100], signalBand: [1, 14], signalSmooth: [0, 12], glyphDensity: [10, 90],
   depth: [1, 5], tracking: [0, 6], fit: [10, 95],
+  imageThreshold: [0, 100], imageResolution: [8, 48], imageInvert: [0, 1],
   seed: [1, 1e9], grid: [4, 26], height: [1, 16], coverage: [0, 100],
   detail: [1, 100], octaves: [1, 6], warp: [0, 100], jitter: [0, 100],
   steps: [0, 8], floaters: [0, 24],
@@ -158,6 +216,11 @@ export const LIMITS: Partial<Record<keyof Params, [number, number]>> = {
   light: [0, 360], contrast: [0, 220],
   aspect: [1, 6], zoom: [25, 400], bgAngle: [0, 360], inset: [0, 20], frame: [0, 12],
   shiftX: [-60, 60], shiftY: [-60, 60],
+  titleX: [0, 100], titleY: [0, 100], titleSize: [3, 48], titleTracking: [-5, 30],
+  ornamentCount: [1, 24], ornamentSize: [1, 16], ornamentOpacity: [0, 100],
+  gridOverlay: [0, 1], gridSpacing: [2, 30], gridAngle: [-180, 180],
+  gridSkew: [15, 165], gridOpacity: [0, 100], gridFade: [0, 100],
+  gridFadeAngle: [0, 360],
 }
 
 // A field grows to fill whatever canvas it is given, so pulling back costs one
@@ -194,6 +257,7 @@ export const RAMPS: RampPreset[] = [
 // signal drops to nothing and the waveform breaks into islands. Lowering
 // coverage from here is how you deliberately gate silence out.
 export const SURFACE_PRESETS: Partial<Record<Surface, Partial<Params>>> = {
+  image: { depth: 2, fit: 70, floaters: 0 },
   text:  { coverage: 100, height: 7, grid: 11, warp: 0, floaters: 0, jitter: 0, steps: 0 },
   voice: { coverage: 100, height: 7, grid: 11, warp: 0, floaters: 0, jitter: 0, steps: 0 },
 }

@@ -43,7 +43,12 @@ export function normalize(input: Partial<Record<keyof Params, unknown>>): Params
   out.octaves = Math.round(out.octaves)
   out.steps = Math.round(out.steps)
   out.floaters = Math.round(out.floaters)
+  out.imageResolution = Math.round(out.imageResolution)
+  out.imageInvert = out.imageInvert ? 1 : 0
   out.useMid = out.useMid ? 1 : 0
+  out.gridOverlay = out.gridOverlay ? 1 : 0
+  out.ornamentCount = Math.round(out.ornamentCount)
+  out.title = String(out.title).slice(0, MAX_TEXT)
   out.zoom = Math.max(Math.round(out.zoom), zoomFloor(out))
   return out
 }
@@ -56,7 +61,9 @@ export function normalize(input: Partial<Record<keyof Params, unknown>>): Params
  */
 export function zoomFloor(p: Pick<Params, 'surface' | 'grid'>): number {
   const [lo] = LIMITS.zoom!
-  return p.surface === 'letters' ? lo : Math.max(lo, Math.ceil((p.grid / MAX_SPAN) * 100))
+  return p.surface === 'letters' || p.surface === 'image'
+    ? lo
+    : Math.max(lo, Math.ceil((p.grid / MAX_SPAN) * 100))
 }
 
 /** Starting point for a composition, with everything else left at defaults. */

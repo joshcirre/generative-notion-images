@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BACKDROPS, BASELINES, GLYPH_SOURCES, LIMITS, MAX_TEXT, MODES, PALETTES, RAMPS, RUNS,
-  SEAMS, SHAPES, SIGNAL_MODES, SURFACES, SYMMETRIES,
+  BACKDROPS, BASELINES, GLYPH_SOURCES, IMAGE_CHANNELS, LIMITS, MAX_TEXT, MODES,
+  ORNAMENTS, PALETTES, RAMPS, RUNS, SEAMS, SHAPES, SIGNAL_MODES, SURFACES,
+  SYMMETRIES, TITLE_ALIGNS,
   buildScene, fromQuery, generateMask, glyphMask, normalize, preset, randomize,
   soleGlyph, surfacePreset, toQuery, tint, zoomFloor,
-  type Params,
+  type ImageSample, type Params,
 } from '../scene'
 import {
   DeviceBody, DeviceFace, DeviceGrille, DeviceNoiseFilter, DeviceScreen, Rack, StatusBar,
@@ -14,6 +15,7 @@ import {
 } from './controls'
 import { useMicSignal } from './useMicSignal'
 import { exportPNG, exportSVG } from './export'
+import { sampleImage } from './image'
 
 const pct = (v: number) => `${v}%`
 const EXPORT_WIDTHS = (aspect: number) => (aspect === 1 ? [512, 1024, 2048] : [1500, 3000])
@@ -23,6 +25,9 @@ export default function App() {
   const [params, setParams] = useState<Params>(() =>
     normalize({ ...preset('terrain'), ...fromQuery(window.location.hash) }))
   const [guides, setGuides] = useState(true)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageSample, setImageSample] = useState<ImageSample | null>(null)
+  const [imageError, setImageError] = useState('')
 
   const set = useCallback(<K extends keyof Params>(key: K, value: Params[K]) => {
     setParams(prev => normalize({ ...prev, [key]: value }))
@@ -33,13 +38,27 @@ export default function App() {
   }, [])
   const mic = useMicSignal(setSignal)
 
+  useEffect(() => {
+    let live = true
+    if (!imageFile) {
+      setImageSample(null)
+      return
+    }
+    setImageError('')
+    void sampleImage(imageFile, params.imageResolution).then(
+      sample => { if (live) setImageSample(sample) },
+      error => { if (live) setImageError(error instanceof Error ? error.message : 'Could not read that image.') },
+    )
+    return () => { live = false }
+  }, [imageFile, params.imageResolution])
+
   // Switching composition loads that mode's preset but keeps the choices that
   // aren't really about the composition — seed, palette, material, canvas.
   const setMode = useCallback((mode: Params['mode']) => {
     setParams(prev => normalize({ ...preset(mode), ...carryOver(prev), mode }))
   }, [])
 
-  const scene = useMemo(() => buildScene(params), [params])
+  const scene = useMemo(() => buildScene(params, imageSample), [params, imageSample])
   // Guides belong to the preview only — never to what gets exported. They
   // describe a Notion cover, so a square icon canvas has no use for them.
   const preview = useMemo(
@@ -80,6 +99,7 @@ export default function App() {
 
   const surface = params.surface
   const isLetters = surface === 'letters'
+  const isImage = surface === 'image'
   const isSignal = surface === 'text' || surface === 'voice'
   const generated = params.glyphSource === 'generated'
 
@@ -94,6 +114,7 @@ export default function App() {
 
   const stamp = isLetters
     ? params.text.toLowerCase().replace(/\W+/g, '') || 'mark'
+    : isImage ? imageFile?.name.replace(/\.[^.]+$/, '').replace(/\W+/g, '-').toLowerCase() || 'image'
     : `${surface === 'pattern' ? params.mode : surface}-${params.seed}`
 
   return (
@@ -128,7 +149,7 @@ export default function App() {
             </div>
 
             <div className="flex shrink-0 flex-wrap items-end gap-2">
-              <div className="w-full max-w-56 sm:w-56">
+              <div className="w-full max-w-72 sm:w-72">
                 <Segmented
                   label="Surface"
                   value={surface}
@@ -146,7 +167,7 @@ export default function App() {
                   ...randomize(Math.floor(Math.random() * 99999) + 1, prev.surface),
                   // Content is not style: what you typed, drew or recorded stays.
                   surface: prev.surface, text: prev.text, custom: prev.custom,
-                  signal: prev.signal,
+                  signal: prev.signal, title: prev.title,
                   // Nor is the canvas you chose to look through.
                   aspect: prev.aspect, zoom: prev.zoom,
                 }))}
@@ -230,6 +251,42 @@ export default function App() {
                       Type a single character to edit its blocks by hand.
                     </p>
                   )}
+                </Rack>
+              ) : isImage ? (
+                <Rack label="Image mosaic">
+                  <ImagePicker
+                    file={imageFile}
+                    sample={imageSample}
+                    error={imageError}
+                    onChange={file => {
+                      setImageFile(file)
+                      setParams(prev => surfacePreset('image', prev))
+                    }}
+                  />
+                  <Segmented
+                    label="Read channel"
+                    value={params.imageChannel}
+                    options={IMAGE_CHANNELS}
+                    onChange={v => set('imageChannel', v)}
+                    columns={4}
+                  />
+                  <p className="font-device text-[10px] leading-relaxed text-muted">
+                    Auto uses transparency when present, or contrast from the image edge.
+                    Dark and Light are useful for flat artwork on a solid background.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Scrub label="Resolution" value={params.imageResolution} onChange={v => set('imageResolution', v)} min={8} max={48} />
+                    <Scrub label="Threshold" value={params.imageThreshold} onChange={v => set('imageThreshold', v)} min={0} max={100} unit="%" />
+                    <Scrub label="Depth" value={params.depth} onChange={v => set('depth', v)} min={1} max={5} />
+                    <Scrub label="Fit" value={params.fit} onChange={v => set('fit', v)} min={10} max={95} unit="%" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Segmented label="Run" value={params.run} options={RUNS} onChange={v => set('run', v)} />
+                    <Toggle label="Invert" checked={!!params.imageInvert} onChange={v => set('imageInvert', v ? 1 : 0)} />
+                  </div>
+                  <p className="font-device text-[10px] leading-relaxed text-muted">
+                    The file is sampled in this tab only. It is never uploaded or added to the share URL.
+                  </p>
                 </Rack>
               ) : isSignal ? (
                 <Rack label={surface === 'voice' ? 'Voice' : 'Text'}>
@@ -324,6 +381,37 @@ export default function App() {
                 <BracketSlider label="Face contrast" value={params.contrast} onChange={v => set('contrast', v)} min={0} max={220} format={pct} />
               </Rack>
 
+              {/* ---- overlay --------------------------------------------- */}
+              <Rack label="Title & symbols">
+                <TextField
+                  label="Header text"
+                  value={params.title}
+                  onChange={v => set('title', v)}
+                  placeholder="Optional title"
+                  maxLength={MAX_TEXT}
+                  uppercase={false}
+                />
+                <Segmented label="Align" value={params.titleAlign} options={TITLE_ALIGNS} onChange={v => set('titleAlign', v)} columns={3} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Scrub label="Title X" value={params.titleX} onChange={v => set('titleX', v)} min={0} max={100} unit="%" />
+                  <Scrub label="Title Y" value={params.titleY} onChange={v => set('titleY', v)} min={0} max={100} unit="%" />
+                  <Scrub label="Title size" value={params.titleSize} onChange={v => set('titleSize', v)} min={3} max={48} unit="%" />
+                  <Scrub label="Tracking" value={params.titleTracking} onChange={v => set('titleTracking', v)} min={-5} max={30} unit="%" />
+                </div>
+                <ColorField label="Title color" value={params.titleColor} onChange={v => set('titleColor', v)} />
+                <Segmented label="Symbols" value={params.ornaments} options={ORNAMENTS} onChange={v => set('ornaments', v)} columns={3} />
+                {params.ornaments !== 'none' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Scrub label="Symbol count" value={params.ornamentCount} onChange={v => set('ornamentCount', v)} min={1} max={24} />
+                      <Scrub label="Symbol size" value={params.ornamentSize} onChange={v => set('ornamentSize', v)} min={1} max={16} unit="%" />
+                    </div>
+                    <BracketSlider label="Symbol opacity" value={params.ornamentOpacity} onChange={v => set('ornamentOpacity', v)} min={0} max={100} format={pct} />
+                    <ColorField label="Symbol color" value={params.ornamentColor} onChange={v => set('ornamentColor', v)} />
+                  </>
+                ) : null}
+              </Rack>
+
               {/* ---- canvas ------------------------------------------------ */}
               <Rack label="Canvas">
                 {/* Named for what Notion calls them rather than by ratio. Other
@@ -351,6 +439,20 @@ export default function App() {
                   <Scrub label="Frame" value={params.frame} onChange={v => set('frame', v)} min={0} max={12} step={0.5} />
                   <ColorField label="Frame col" value={params.frameColor} onChange={v => set('frameColor', v)} />
                 </div>
+                <Toggle label="Background grid" checked={!!params.gridOverlay} onChange={v => set('gridOverlay', v ? 1 : 0)} />
+                {params.gridOverlay ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Scrub label="Grid size" value={params.gridSpacing} onChange={v => set('gridSpacing', v)} min={2} max={30} unit="%" />
+                      <Scrub label="Direction" value={params.gridAngle} onChange={v => set('gridAngle', v)} min={-180} max={180} unit="°" />
+                      <Scrub label="Skew" value={params.gridSkew} onChange={v => set('gridSkew', v)} min={15} max={165} unit="°" />
+                      <Scrub label="Fade dir." value={params.gridFadeAngle} onChange={v => set('gridFadeAngle', v)} min={0} max={360} unit="°" />
+                    </div>
+                    <BracketSlider label="Grid opacity" value={params.gridOpacity} onChange={v => set('gridOpacity', v)} min={0} max={100} format={pct} />
+                    <BracketSlider label="Directional fade" value={params.gridFade} onChange={v => set('gridFade', v)} min={0} max={100} format={pct} />
+                    <ColorField label="Grid color" value={params.gridColor} onChange={v => set('gridColor', v)} />
+                  </>
+                ) : null}
                 {/* Zoom and the two nudges are one group: where the canvas sits
                     over the artwork, as opposed to what the artwork is. */}
                 <div className="grid grid-cols-2 items-end gap-2">
@@ -368,7 +470,7 @@ export default function App() {
                   </Button>
                 </div>
                 <p className="font-device text-[10px] leading-relaxed text-muted">
-                  {params.surface === 'letters'
+                  {params.surface === 'letters' || params.surface === 'image'
                     ? 'Crops into the wordmark past what Fit allows. Scroll over the artwork to zoom.'
                     : `Blocks keep their size, so the canvas holds ${describeSpan(params)}. Scroll over the artwork to zoom.`}
                 </p>
@@ -386,6 +488,15 @@ export default function App() {
               </span>
               <a
                 className="ml-auto hidden shrink-0 hover:text-primary md:inline"
+                href="https://github.com/joshcirre/generative-notion-images"
+                target="_blank"
+                rel="noreferrer"
+              >
+                SOURCE + CLI DOCS ↗
+              </a>
+              <span className="hidden text-sand-8 md:inline">/</span>
+              <a
+                className="hidden shrink-0 hover:text-primary md:inline"
                 href="https://github.com/wking-io/patterns-for-creativity"
                 target="_blank"
                 rel="noreferrer"
@@ -418,9 +529,53 @@ function describeSpan(p: Params): string {
 
 function describe(p: Params): string {
   if (p.surface === 'letters') return `letters / ${p.glyphSource} / ${p.baseline}`
+  if (p.surface === 'image') return `image / ${p.imageChannel}`
   if (p.surface === 'text') return `text / ${p.signalMode}`
   if (p.surface === 'voice') return `voice / ${p.signalMode}`
   return `${p.mode} / ${p.shape}`
+}
+
+function ImagePicker({
+  file, sample, error, onChange,
+}: {
+  file: File | null
+  sample: ImageSample | null
+  error: string
+  onChange: (file: File) => void
+}) {
+  const [dragging, setDragging] = useState(false)
+  const take = (files: FileList | null) => {
+    const next = files?.[0]
+    if (next) onChange(next)
+  }
+  return (
+    <label
+      onDragEnter={e => { e.preventDefault(); setDragging(true) }}
+      onDragOver={e => e.preventDefault()}
+      onDragLeave={() => setDragging(false)}
+      onDrop={e => {
+        e.preventDefault()
+        setDragging(false)
+        take(e.dataTransfer.files)
+      }}
+      className={`flex cursor-pointer flex-col items-center justify-center gap-1 border border-dashed px-3 py-4 text-center transition-colors ${
+        dragging ? 'border-primary bg-red-50' : 'border-sand-7 bg-white hover:bg-sand-3'
+      }`}
+    >
+      <input
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={e => { take(e.target.files); e.currentTarget.value = '' }}
+      />
+      <span className="font-pixel text-[10px] tracking-wide text-ink">
+        {file ? file.name : 'DROP IMAGE / CHOOSE FILE'}
+      </span>
+      <span className={`font-device text-[10px] ${error ? 'font-bold text-primary' : 'text-muted'}`}>
+        {error || (sample ? `${sample.width}×${sample.height} local sample` : 'PNG, JPG, WebP, SVG')}
+      </span>
+    </label>
+  )
 }
 
 function VoicePanel({

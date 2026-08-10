@@ -1,4 +1,4 @@
-import type { Params } from './types'
+import type { ImageSample, Params } from './types'
 import { normalize } from './params'
 import { GLYPH_H, GLYPH_W, generateMask, glyphMask, maskCells, soleGlyph } from './font'
 import {
@@ -175,11 +175,15 @@ function makePalette(p: Params) {
 
 // ---------------------------------------------------------------------------
 
-export function buildScene(input: Partial<Params> = {}): SceneResult {
+export function buildScene(input: Partial<Params> = {}, image?: ImageSample | null): SceneResult {
   const p = normalize(input)
   const plot = makePlotter(p)
   const palette = makePalette(p)
-  const out = p.surface === 'letters' ? plotLetters(p, plot, palette) : plotField(p, plot, palette)
+  const out = p.surface === 'letters'
+    ? plotLetters(p, plot, palette)
+    : p.surface === 'image'
+      ? plotImage(p, plot, palette, image)
+      : plotField(p, plot, palette)
 
   return {
     svg: assemble(plot.polys, p, out.view),
@@ -469,6 +473,117 @@ function plotLetters(p: Params, plot: Plotter, palette: ReturnType<typeof makePa
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Surface: an uploaded raster rebuilt as a wall of isometric pixels. The file
+ * stays in browser memory; only this small decoded sample crosses into the
+ * scene engine. Shade decides whether a pixel exists and where it lands on the
+ * palette, while the shared Depth control gives the mosaic its extrusion.
+ */
+function plotImage(
+  p: Params,
+  plot: Plotter,
+  palette: ReturnType<typeof makePalette>,
+  image?: ImageSample | null,
+) {
+  const { box, bounds } = plot
+  if (!image || image.width < 1 || image.height < 1) {
+    const vh = (p.grid * BASE) / (p.zoom / 100)
+    const vw = vh * p.aspect
+    return {
+      view: {
+        x: -vw / 2 + (p.shiftX / 100) * vw,
+        y: -vh / 2 + (p.shiftY / 100) * vh,
+        w: vw,
+        h: vh,
+      },
+      peak: 0,
+    }
+  }
+
+  const rgba = image.rgba
+  let transparentPixels = 0
+  let er = 0, eg = 0, eb = 0, en = 0
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      const i = (y * image.width + x) * 4
+      const a = rgba[i + 3]! / 255
+      if (a < 0.5) transparentPixels++
+      if (x === 0 || y === 0 || x === image.width - 1 || y === image.height - 1) {
+        er += rgba[i]!; eg += rgba[i + 1]!; eb += rgba[i + 2]!; en++
+      }
+    }
+  }
+  er /= en || 1; eg /= en || 1; eb /= en || 1
+  const transparent = transparentPixels / (image.width * image.height) > 0.02
+
+  const threshold = p.imageThreshold / 100
+  const cells: Array<{ x: number; z: number; tone: number }> = []
+  for (let y = 0; y < image.height; y++) {
+    for (let x = 0; x < image.width; x++) {
+      const i = (y * image.width + x) * 4
+      const r = rgba[i]!, g = rgba[i + 1]!, b = rgba[i + 2]!, a = rgba[i + 3]! / 255
+      const luma = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255
+      const contrast = Math.min(1, Math.hypot(r - er, g - eg, b - eb) / 300) * a
+      let strength: number
+      switch (p.imageChannel) {
+        case 'alpha': strength = a; break
+        case 'dark': strength = (1 - luma) * a; break
+        case 'light': strength = luma * a; break
+        default: strength = transparent ? a * (0.5 + (1 - luma) * 0.5) : contrast
+      }
+      if (p.imageInvert) strength = (1 - strength) * a
+      if (strength <= threshold) continue
+      cells.push({
+        x,
+        z: image.height - 1 - y,
+        tone: clamp01((strength - threshold) / Math.max(0.001, 1 - threshold)),
+      })
+    }
+  }
+
+  const climbs = p.run === 'rise'
+  const foot = (k: number) => climbs
+    ? { u0: 0, u1: p.depth, v0: -k - 1, v1: -k }
+    : { u0: k, u1: k + 1, v0: 0, v1: p.depth }
+  const order = [...cells].sort((a, b) => {
+    const fa = foot(a.x), fb = foot(b.x)
+    return (fa.u0 + fa.v0) - (fb.u0 + fb.v0) || a.z - b.z
+  })
+
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+  for (const cell of order) {
+    const f = foot(cell.x)
+    box(f.u0, f.u1, f.v0, f.v1, cell.z, cell.z + 1, palette(cell.tone, cell.x, cell.z))
+    const b = bounds(f.u0, f.u1, f.v0, f.v1, cell.z, cell.z + 1)
+    minX = Math.min(minX, b.minX); maxX = Math.max(maxX, b.maxX)
+    minY = Math.min(minY, b.minY); maxY = Math.max(maxY, b.maxY)
+  }
+
+  if (!order.length) {
+    minX = -BASE; maxX = BASE; minY = -BASE; maxY = BASE
+  }
+  const margin = 0.06
+  const bw = maxX - minX, bh = maxY - minY
+  let vh = bh / (p.fit / 100)
+  let vw = vh * p.aspect
+  const needed = bw / (1 - 2 * margin)
+  if (vw < needed) { vw = needed; vh = vw / p.aspect }
+  const zoom = p.zoom / 100
+  vh /= zoom; vw /= zoom
+
+  return {
+    view: {
+      x: (minX + maxX) / 2 - vw / 2 + (p.shiftX / 100) * vw,
+      y: (minY + maxY) / 2 - vh / 2 + (p.shiftY / 100) * vh,
+      w: vw,
+      h: vh,
+    },
+    peak: image.height,
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 function assemble(polys: Poly[], p: Params, view: Rect): string {
   const { x, y, w, h } = view
   const defs: string[] = []
@@ -484,6 +599,33 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
       `<stop offset="0" stop-color="${p.bg1}"/><stop offset="1" stop-color="${p.bg2}"/></linearGradient>`)
     body.push(`<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#bg)"/>`)
   }
+
+  if (p.gridOverlay && p.gridOpacity > 0) {
+    const spacing = Math.max(2, (p.gridSpacing / 100) * h)
+    const cx = x + w / 2, cy = y + h / 2
+    const fa = (p.gridFadeAngle * Math.PI) / 180
+    const fdx = Math.cos(fa) * 0.5, fdy = Math.sin(fa) * 0.5
+    defs.push(
+      `<pattern id="grid-a" width="${r1(spacing)}" height="${r1(spacing)}" patternUnits="userSpaceOnUse" ` +
+      `patternTransform="rotate(${r1(p.gridAngle)} ${r1(cx)} ${r1(cy)})">` +
+      `<path d="M0 0H${r1(spacing)}" fill="none" stroke="${p.gridColor}" stroke-width="${r1(Math.max(0.5, h * 0.0015))}"/></pattern>`,
+      `<pattern id="grid-b" width="${r1(spacing)}" height="${r1(spacing)}" patternUnits="userSpaceOnUse" ` +
+      `patternTransform="rotate(${r1(p.gridAngle + p.gridSkew)} ${r1(cx)} ${r1(cy)})">` +
+      `<path d="M0 0H${r1(spacing)}" fill="none" stroke="${p.gridColor}" stroke-width="${r1(Math.max(0.5, h * 0.0015))}"/></pattern>`,
+      `<linearGradient id="grid-fade" x1="${r1(0.5 - fdx)}" y1="${r1(0.5 - fdy)}" ` +
+      `x2="${r1(0.5 + fdx)}" y2="${r1(0.5 + fdy)}">` +
+      `<stop offset="0" stop-color="#fff" stop-opacity="${r1(1 - p.gridFade / 100)}"/>` +
+      `<stop offset="1" stop-color="#fff"/></linearGradient>`,
+      `<mask id="grid-mask"><rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#grid-fade)"/></mask>`,
+    )
+    body.push(
+      `<g opacity="${r1(p.gridOpacity / 100)}" mask="url(#grid-mask)">` +
+      `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#grid-a)"/>` +
+      `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#grid-b)"/></g>`,
+    )
+  }
+
+  if (p.ornaments === 'background') body.push(ornamentLayer(p, view))
 
   // Self-stroking each face closes antialiasing gaps between neighbours.
   const fills = polys.map(q => {
@@ -520,6 +662,8 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
     body.push(art)
   }
 
+  if (p.ornaments === 'perimeter') body.push(ornamentLayer(p, view))
+
   if (p.grain > 0) {
     defs.push(
       `<filter id="grain" x="0" y="0" width="100%" height="100%">` +
@@ -529,6 +673,19 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
       `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" ` +
       `filter="url(#grain)" opacity="${r1((p.grain / 100) * 0.42)}" ` +
       `style="mix-blend-mode:multiply" pointer-events="none"/>`)
+  }
+
+
+  if (p.title.trim()) {
+    const tx = x + (p.titleX / 100) * w
+    const ty = y + (p.titleY / 100) * h
+    const fs = (p.titleSize / 100) * h
+    const anchor = p.titleAlign === 'left' ? 'start' : p.titleAlign === 'right' ? 'end' : 'middle'
+    body.push(
+      `<text x="${r1(tx)}" y="${r1(ty)}" fill="${p.titleColor}" text-anchor="${anchor}" ` +
+      `dominant-baseline="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="${r1(fs)}" ` +
+      `font-weight="750" letter-spacing="${r1(fs * p.titleTracking / 100)}">${escapeXml(p.title)}</text>`,
+    )
   }
 
   if (p.frame > 0) {
@@ -541,4 +698,60 @@ function assemble(polys: Poly[], p: Params, view: Rect): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${r1(x)} ${r1(y)} ${r1(w)} ${r1(h)}">` +
     (defs.length ? `<defs>${defs.join('')}</defs>` : '') + body.join('') + '</svg>'
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
+  })[ch]!)
+}
+
+/** Seeded, intentionally simple plotter marks that remain legible at cover size. */
+function ornamentLayer(p: Params, view: Rect): string {
+  const rand = rng(Math.imul(p.seed, 0x45d9f3b) ^ 0x6c8e9cf5)
+  const size = (p.ornamentSize / 100) * view.h
+  const pad = size * 0.85
+  const marks: string[] = []
+  for (let i = 0; i < p.ornamentCount; i++) {
+    let x: number, y: number
+    if (p.ornaments === 'perimeter') {
+      const edge = i % 4
+      const t = 0.08 + rand() * 0.84
+      x = edge === 1 ? view.x + view.w - pad : edge === 3 ? view.x + pad : view.x + t * view.w
+      y = edge === 0 ? view.y + pad : edge === 2 ? view.y + view.h - pad : view.y + t * view.h
+    } else {
+      x = view.x + (0.04 + rand() * 0.92) * view.w
+      y = view.y + (0.08 + rand() * 0.84) * view.h
+    }
+    const kind = Math.floor(rand() * 7)
+    const rot = Math.floor(rand() * 4) * 45
+    const sw = Math.max(0.7, size * 0.075)
+    const common = `fill="none" stroke="${p.ornamentColor}" stroke-width="${r1(sw)}" stroke-linecap="square" stroke-linejoin="miter"`
+    let shape = ''
+    switch (kind) {
+      case 0:
+        shape = `<path d="M0 ${r1(-size * 0.45)}L${r1(size * 0.45)} 0L0 ${r1(size * 0.45)}L${r1(-size * 0.45)} 0Z" ${common}/>`
+        break
+      case 1:
+        shape = `<path d="M${r1(-size * 0.42)} 0H${r1(size * 0.42)}M0 ${r1(-size * 0.42)}V${r1(size * 0.42)}" ${common}/>`
+        break
+      case 2:
+        shape = `<circle r="${r1(size * 0.34)}" ${common}/><circle r="${r1(size * 0.1)}" fill="${p.ornamentColor}"/>`
+        break
+      case 3:
+        shape = `<path d="M${r1(-size * 0.4)} ${r1(-size * 0.35)}H${r1(-size * 0.18)}V${r1(size * 0.35)}H${r1(-size * 0.4)}M${r1(size * 0.4)} ${r1(-size * 0.35)}H${r1(size * 0.18)}V${r1(size * 0.35)}H${r1(size * 0.4)}" ${common}/>`
+        break
+      case 4:
+        shape = [-1, 0, 1].flatMap(yy => [-1, 0, 1].map(xx =>
+          `<circle cx="${r1(xx * size * 0.25)}" cy="${r1(yy * size * 0.25)}" r="${r1(sw * 0.72)}" fill="${p.ornamentColor}"/>`)).join('')
+        break
+      case 5:
+        shape = `<path d="M${r1(-size * 0.42)} ${r1(size * 0.3)}L0 ${r1(-size * 0.42)}L${r1(size * 0.42)} ${r1(size * 0.3)}Z" ${common}/>`
+        break
+      default:
+        shape = `<path d="M0 ${r1(-size * 0.42)}L${r1(size * 0.36)} ${r1(-size * 0.2)}V${r1(size * 0.25)}L0 ${r1(size * 0.46)}L${r1(-size * 0.36)} ${r1(size * 0.25)}V${r1(-size * 0.2)}ZM${r1(-size * 0.36)} ${r1(-size * 0.2)}L0 0L${r1(size * 0.36)} ${r1(-size * 0.2)}M0 0V${r1(size * 0.46)}" ${common}/>`
+    }
+    marks.push(`<g transform="translate(${r1(x)} ${r1(y)}) rotate(${rot})">${shape}</g>`)
+  }
+  return `<g opacity="${r1(p.ornamentOpacity / 100)}">${marks.join('')}</g>`
 }
