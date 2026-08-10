@@ -110,6 +110,11 @@ shade onto the block faces. `Auto` reads alpha for transparent artwork and edge
 contrast for opaque images; `Alpha`, `Dark`, and `Light` let you select the mask
 explicitly. `Invert` flips that selection.
 
+Choose the `dither` palette for a pixelated or terminal-print treatment. It
+uses a stable 4×4 ordered pattern to alternate each isometric block between the
+nearest color stops. The image's tonal structure survives, but broad gradients
+become discrete clusters instead of smooth color interpolation.
+
 ## Background layers
 
 The Canvas rack can put a `grid`, a generative `pattern`, or `both` behind the
@@ -144,7 +149,7 @@ Grouped the way the panel groups them.
   floaters
 - **Form & material** — tilt (isometric angle), stretch, gap, seam width and
   style (`cut` / `light` / `dark` / `none`), occlusion, bevel, grain
-- **Color** — 12 ramps, palette mode (`ramp` / `duotone` / `banded` / `scatter`),
+- **Color** — 12 ramps, palette mode (`ramp` / `duotone` / `banded` / `dither` / `scatter`),
   ground / mid / peak stops, ramp curve, hue drift, saturation, light angle,
   face contrast
 - **Canvas** — format (header / icon), zoom, backdrop mode and gradient angle,

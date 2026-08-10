@@ -134,11 +134,18 @@ type Plotter = ReturnType<typeof makePlotter>
 
 /** Palette lookup shared by both surfaces: a 0..1 tone in, three faces out. */
 function makePalette(p: Params) {
+  // Ordered 4×4 threshold map. Unlike random noise, this keeps repeated renders
+  // stable and distributes adjacent tones into a deliberate pixel pattern.
+  const bayer = [
+    0, 8, 2, 10,
+    12, 4, 14, 6,
+    3, 11, 1, 9,
+    15, 7, 13, 5,
+  ]
   const twoStage = (t: number) =>
     t < 0.5 ? mix(p.colorA, p.colorMid, t * 2) : mix(p.colorMid, p.colorB, (t - 0.5) * 2)
 
-  function rampColor(t01: number): string {
-    let t = Math.pow(clamp01(t01), p.curve / 100)
+  function colorAt(t: number): string {
     let base: string
     switch (p.palette) {
       case 'duotone': base = t < 0.5 ? p.colorA : p.colorB; break
@@ -157,16 +164,33 @@ function makePalette(p: Params) {
     return base
   }
 
+  const rampColor = (t01: number) => colorAt(Math.pow(clamp01(t01), p.curve / 100))
+
+  function ditherTone(tone: number, u: number, v: number): number {
+    const t = Math.pow(clamp01(tone), p.curve / 100)
+    const levels = p.useMid ? 3 : 2
+    const scaled = t * (levels - 1)
+    const lower = Math.floor(scaled)
+    const fraction = scaled - lower
+    const x = mod(Math.round(u), 4), y = mod(Math.round(v), 4)
+    const threshold = (bayer[y * 4 + x]! + 0.5) / 16
+    const level = Math.min(levels - 1, lower + (fraction > threshold ? 1 : 0))
+    return level / (levels - 1)
+  }
+
   const cache = new Map<number, Faces>()
   return (tone: number, u = 0, v = 0): Faces => {
     if (p.palette === 'scatter') {
       // Colored per cell rather than by elevation, so it reads as confetti.
       return facesFor(rampColor(hash2(u, v, p.seed + 313)), p.light, p.contrast)
     }
-    const q = Math.round(clamp01(tone) * 64)
+    const resolved = p.palette === 'dither' ? ditherTone(tone, u, v) : clamp01(tone)
+    const q = Math.round(resolved * 64)
     let f = cache.get(q)
     if (!f) {
-      f = facesFor(rampColor(q / 64), p.light, p.contrast)
+      // Dither already applies the curve before choosing a discrete level.
+      const color = p.palette === 'dither' ? colorAt(q / 64) : rampColor(q / 64)
+      f = facesFor(color, p.light, p.contrast)
       cache.set(q, f)
     }
     return f

@@ -106,6 +106,10 @@ Drop `--png` to write SVG. Use `--width N` to choose output width; height follow
 | Drafting grid | `gridSpacing`, `gridAngle`, `gridSkew`, `gridOpacity`, `gridFade`, `gridFadeAngle`, `gridColor` |
 | Canvas | `aspect`, `zoom`, `shiftX`, `shiftY`, `backdrop`, `inset`, `frame` |
 
+For uploaded image mosaics, use `palette=dither` to preserve shade as a stable
+pixel pattern across neighboring isometric blocks. `useMid=1` dithers between
+three stops; `useMid=0` produces a harder two-tone result.
+
 For a letter header, start with `backgroundLayer=pattern`, `baseline=flat`, a
 pattern height of 1–3, coverage around 40–55, and reach around 25–35. Change
 `backgroundPatternSeed` to shuffle only the background without moving the

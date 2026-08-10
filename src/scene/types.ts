@@ -14,7 +14,7 @@ export const MODES = [
   'terrain', 'skyline', 'waves', 'islands', 'terraces', 'drift', 'rings', 'weave',
 ] as const
 export const SHAPES = ['full', 'island', 'ridge', 'corner', 'vignette'] as const
-export const PALETTES = ['ramp', 'duotone', 'banded', 'scatter'] as const
+export const PALETTES = ['ramp', 'duotone', 'banded', 'dither', 'scatter'] as const
 export const SEAMS = ['cut', 'light', 'dark', 'none'] as const
 export const BACKDROPS = ['gradient', 'solid', 'none'] as const
 export const BACKGROUND_LAYERS = ['none', 'grid', 'pattern', 'both'] as const

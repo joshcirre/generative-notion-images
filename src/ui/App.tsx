@@ -368,7 +368,7 @@ export default function App() {
                     />
                   ))}
                 </div>
-                <Segmented label="Palette" value={params.palette} options={PALETTES} onChange={v => set('palette', v)} columns={4} />
+                <Segmented label="Palette" value={params.palette} options={PALETTES} onChange={v => set('palette', v)} columns={5} />
                 <div className="grid grid-cols-2 gap-2">
                   <ColorField label="Ground" value={params.colorA} onChange={v => set('colorA', v)} />
                   <ColorField label="Peaks" value={params.colorB} onChange={v => set('colorB', v)} />
