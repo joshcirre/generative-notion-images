@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-const API_ORIGIN = 'https://generative-notion-images-api-production-rz9lym.laravel.cloud'
-const MCP_URL = `${API_ORIGIN}/mcp/notion-images`
-const REST_URL = `${API_ORIGIN}/api/renders`
+const MCP_URL = 'https://notion-images-api.laravel.cloud/mcp/notion-images'
+const CODEX_COMMAND = `codex mcp add notion-images --url ${MCP_URL}`
+const CLAUDE_COMMAND = `claude mcp add --transport http --scope user notion-images ${MCP_URL}`
+const AGENT_PROMPT = `Connect the public Notion Images MCP server at ${MCP_URL} using Streamable HTTP with no authentication. Name it “notion-images”. Then use generate-notion-image to create isometric Notion covers or icons from my prompts, images, audio, or block letters.`
 
-type ConnectView = 'mcp' | 'rest' | 'agent'
+type ConnectView = 'chatgpt' | 'claude' | 'cli'
+
+const connectionViews: Array<{ value: ConnectView; label: string }> = [
+  { value: 'chatgpt', label: 'ChatGPT' },
+  { value: 'claude', label: 'Claude' },
+  { value: 'cli', label: 'Coding CLI' },
+]
 
 export function AgentConnectDialog({
   open,
@@ -14,7 +21,7 @@ export function AgentConnectDialog({
   onClose: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [view, setView] = useState<ConnectView>('mcp')
+  const [view, setView] = useState<ConnectView>('chatgpt')
 
   useEffect(() => {
     const node = dialog.current
@@ -22,42 +29,6 @@ export function AgentConnectDialog({
     if (open && !node.open) node.showModal()
     if (!open && node.open) node.close()
   }, [open])
-
-  const snippet = useMemo(() => {
-    if (view === 'rest') {
-      return `curl --request POST ${REST_URL} \\
-  --header "Authorization: Bearer \$NOTION_IMAGES_API_TOKEN" \\
-  --header "Content-Type: application/json" \\
-  --output notion-cover.png \\
-  --data '{
-    "text": "PLATFORM",
-    "layout": "header",
-    "background": "both",
-    "palette_preset": "ocean",
-    "seed": 42
-  }'`
-    }
-
-    if (view === 'agent') {
-      return `Connect to the Notion Images remote MCP server.
-
-Server URL: ${MCP_URL}
-Transport: Streamable HTTP
-Authentication: None — this MCP server is public
-Tool: generate-notion-image
-
-Use the tool to turn my natural-language art direction into a reproducible isometric Notion cover or icon. It supports block letters, generated patterns, source-image mosaics, and text- or voice-signal terrain. For an attached image, send its base64 bytes as image_data. For audio, extract a normalized loudness envelope and send audio_envelope. Start with a letters layout and a sparse background pattern unless my prompt asks for another surface. Return the generated PNG or SVG to me.`
-    }
-
-    return `Remote MCP server
-${MCP_URL}
-
-Authentication
-None — public endpoint
-
-Available tool
-generate-notion-image`
-  }, [view])
 
   return (
     <dialog
@@ -76,13 +47,13 @@ generate-notion-image`
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex items-center gap-2 font-device text-[9px] tracking-[0.18em] text-muted uppercase">
                 <span className="size-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                Public MCP online
+                Public MCP · no API key
               </div>
               <h2 id="agent-dialog-title" className="font-pixel text-sm tracking-[0.1em] text-ink uppercase sm:text-base">
-                Connect an agent
+                Connect Notion Images
               </h2>
               <p className="mt-1 max-w-xl font-device text-[10px] leading-relaxed text-muted sm:text-[11px]">
-                Generate the same isometric artwork programmatically through Laravel MCP or the REST API.
+                Add the generator to the agent you already use, then ask it for an image.
               </p>
             </div>
             <button
@@ -96,18 +67,8 @@ generate-notion-image`
           </header>
 
           <div className="overflow-y-auto overscroll-contain p-4 sm:p-5">
-            <div className="mb-4 grid grid-cols-[auto_1fr_auto_1fr_auto] items-center gap-2 border border-sand-7 bg-white px-3 py-2 font-device text-[8px] tracking-wide text-muted uppercase sm:text-[9px]">
-              <span className="text-ink">Agent</span><span className="h-px bg-sand-6" />
-              <span className="text-primary">Laravel MCP</span><span className="h-px bg-sand-6" />
-              <span className="text-ink">PNG / SVG</span>
-            </div>
-
             <div className="grid grid-cols-3 gap-px border border-sand-7 bg-sand-6" role="tablist" aria-label="Connection method">
-              {([
-                ['mcp', 'MCP'],
-                ['rest', 'REST + token'],
-                ['agent', 'Agent prompt'],
-              ] as const).map(([value, label]) => (
+              {connectionViews.map(({ value, label }) => (
                 <button
                   key={value}
                   type="button"
@@ -123,29 +84,20 @@ generate-notion-image`
               ))}
             </div>
 
-            <section className="mt-3 border border-sand-7 bg-[#171612] text-sand-3">
-              <div className="flex items-center justify-between border-b border-white/15 px-3 py-2">
-                <span className="font-pixel text-[9px] tracking-[0.16em] text-sand-8 uppercase">
-                  {view === 'mcp' ? 'Connection manifest' : view === 'rest' ? 'Terminal request' : 'Paste into your agent'}
-                </span>
-                <CopySnippet value={snippet} />
-              </div>
-              <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words p-3 font-device text-[10px] leading-relaxed text-sand-3 sm:p-4 sm:text-[11px]">
-                {snippet}
-              </pre>
-            </section>
-
+            {view === 'chatgpt' && <ChatGptInstructions />}
+            {view === 'claude' && <ClaudeInstructions />}
+            {view === 'cli' && <CliInstructions />}
           </div>
 
           <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-sand-7 px-4 py-3 font-device text-[9px] text-muted sm:px-5">
-            <span>MCP STATUS / PUBLIC / RATE LIMITED</span>
+            <span>ONE PUBLIC TOOL · PNG + SVG</span>
             <a
               href="https://github.com/joshcirre/generative-notion-images/blob/main/api/README.md"
               target="_blank"
               rel="noreferrer"
               className="text-ink hover:text-primary"
             >
-              FULL API DOCUMENTATION ↗
+              FULL DOCUMENTATION ↗
             </a>
           </footer>
         </div>
@@ -154,13 +106,116 @@ generate-notion-image`
   )
 }
 
-function CopySnippet({ value }: { value: string }) {
+function ChatGptInstructions() {
+  return (
+    <section className="mt-3 border border-sand-7 bg-white">
+      <InstructionHeader step="01" title="Create a custom app" />
+      <ol className="space-y-3 p-4 font-device text-[10px] leading-relaxed text-muted sm:text-[11px]">
+        <li><StepNumber>1</StepNumber>In ChatGPT settings, open <strong className="text-ink">Apps → Create</strong>. Enable Developer mode first if prompted.</li>
+        <li><StepNumber>2</StepNumber>Enter these connection details:</li>
+      </ol>
+      <div className="mx-4 mb-4 grid border border-sand-7 sm:grid-cols-[120px_1fr]">
+        <Field label="Name" value="Notion Images" />
+        <Field label="Description" value="Generate isometric Notion covers and icons" />
+        <Field label="Server URL" value={MCP_URL} copy />
+        <Field label="Authentication" value="No Auth" />
+      </div>
+      <p className="border-t border-dashed border-sand-7 px-4 py-3 font-device text-[10px] leading-relaxed text-muted sm:text-[11px]">
+        <StepNumber>3</StepNumber>Accept the custom MCP warning, scan the tools, and select <strong className="text-ink">Create</strong>.
+      </p>
+    </section>
+  )
+}
+
+function ClaudeInstructions() {
+  return (
+    <section className="mt-3 border border-sand-7 bg-white">
+      <InstructionHeader step="01" title="Add a custom connector" />
+      <ol className="space-y-3 p-4 font-device text-[10px] leading-relaxed text-muted sm:text-[11px]">
+        <li><StepNumber>1</StepNumber>In Claude, open <strong className="text-ink">Customize → Connectors</strong>.</li>
+        <li><StepNumber>2</StepNumber>Select <strong className="text-ink">+ → Add custom connector</strong>, name it <strong className="text-ink">Notion Images</strong>, and paste this URL:</li>
+      </ol>
+      <CodeSnippet label="Remote MCP URL" value={MCP_URL} />
+      <p className="border-t border-dashed border-sand-7 px-4 py-3 font-device text-[10px] leading-relaxed text-muted sm:text-[11px]">
+        <StepNumber>3</StepNumber>Select <strong className="text-ink">Add</strong>. No OAuth or API key is required.
+      </p>
+      <div className="border-t border-sand-7 bg-sand-2 px-4 py-3">
+        <p className="mb-2 font-pixel text-[8px] tracking-[0.14em] text-muted uppercase">Claude Code instead?</p>
+        <CodeSnippet label="Terminal" value={CLAUDE_COMMAND} inset={false} />
+      </div>
+    </section>
+  )
+}
+
+function CliInstructions() {
+  return (
+    <section className="mt-3 border border-sand-7 bg-white">
+      <InstructionHeader step="01" title="Connect from your terminal" />
+      <div className="space-y-4 p-4">
+        <div>
+          <p className="mb-2 font-pixel text-[8px] tracking-[0.14em] text-muted uppercase">Codex CLI</p>
+          <CodeSnippet label="Terminal" value={CODEX_COMMAND} inset={false} />
+        </div>
+        <div>
+          <p className="mb-2 font-pixel text-[8px] tracking-[0.14em] text-muted uppercase">Any coding agent</p>
+          <CodeSnippet label="Paste this prompt" value={AGENT_PROMPT} inset={false} />
+        </div>
+      </div>
+      <p className="border-t border-dashed border-sand-7 px-4 py-3 font-device text-[10px] leading-relaxed text-muted sm:text-[11px]">
+        Then ask: <strong className="text-ink">“Create a blue isometric Notion cover that says PLATFORM.”</strong>
+      </p>
+    </section>
+  )
+}
+
+function InstructionHeader({ step, title }: { step: string; title: string }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-sand-7 bg-sand-2 px-4 py-3">
+      <span className="font-pixel text-[9px] text-primary">{step}</span>
+      <h3 className="font-pixel text-[9px] tracking-[0.14em] text-ink uppercase">{title}</h3>
+    </div>
+  )
+}
+
+function StepNumber({ children }: { children: React.ReactNode }) {
+  return <span className="mr-2 inline-grid size-5 place-items-center border border-sand-7 bg-sand-2 font-pixel text-[8px] text-primary">{children}</span>
+}
+
+function Field({ label, value, copy = false }: { label: string; value: string; copy?: boolean }) {
+  return (
+    <>
+      <div className="border-b border-sand-7 bg-sand-2 px-3 py-2 font-pixel text-[8px] tracking-wide text-muted uppercase sm:border-r">{label}</div>
+      <div className="flex min-w-0 items-center justify-between gap-2 border-b border-sand-7 px-3 py-2 font-device text-[10px] text-ink">
+        <span className="min-w-0 break-all">{value}</span>
+        {copy && <CopySnippet value={value} dark={false} />}
+      </div>
+    </>
+  )
+}
+
+function CodeSnippet({ label, value, inset = true }: { label: string; value: string; inset?: boolean }) {
+  return (
+    <div className={`${inset ? 'mx-4 mb-4' : ''} border border-[#34312a] bg-[#171612] text-sand-3`}>
+      <div className="flex items-center justify-between border-b border-white/15 px-3 py-2">
+        <span className="font-pixel text-[8px] tracking-[0.14em] text-sand-8 uppercase">{label}</span>
+        <CopySnippet value={value} />
+      </div>
+      <pre className="overflow-auto whitespace-pre-wrap break-words p-3 font-device text-[10px] leading-relaxed text-sand-3 sm:text-[11px]">{value}</pre>
+    </div>
+  )
+}
+
+function CopySnippet({ value, dark = true }: { value: string; dark?: boolean }) {
   const [copied, setCopied] = useState(false)
 
   return (
     <button
       type="button"
-      className="border border-white/25 px-2 py-1 font-device text-[9px] tracking-wide text-white uppercase transition-colors hover:border-primary hover:bg-primary"
+      className={`shrink-0 border px-2 py-1 font-device text-[9px] tracking-wide uppercase transition-colors ${
+        dark
+          ? 'border-white/25 text-white hover:border-primary hover:bg-primary'
+          : 'border-sand-7 text-muted hover:border-primary hover:bg-primary hover:text-white'
+      }`}
       onClick={() => {
         void navigator.clipboard.writeText(value).then(() => {
           setCopied(true)

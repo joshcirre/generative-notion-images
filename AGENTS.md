@@ -11,7 +11,7 @@ or shell access.
 The hosted MCP endpoint is public and does not require authentication:
 
 ```text
-https://generative-notion-images-api-production-rz9lym.laravel.cloud/mcp/notion-images
+https://notion-images-api.laravel.cloud/mcp/notion-images
 ```
 
 ## Generate through Laravel MCP
