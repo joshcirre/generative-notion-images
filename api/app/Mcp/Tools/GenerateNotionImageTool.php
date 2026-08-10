@@ -47,7 +47,8 @@ class GenerateNotionImageTool extends Tool
             return Response::make(Response::error($exception->getMessage()));
         }
 
-        $downloadUrl = $this->downloadUrl($payload);
+        $previewUrl = $this->renderUrl($previewPayload, inline: true);
+        $downloadUrl = $this->renderUrl($payload, inline: false);
         $editorUrl = array_key_exists('imageData', $payload) ? null : $this->editorUrl($payload['params']);
         $metadata = [
             'format' => $payload['format'],
@@ -57,11 +58,15 @@ class GenerateNotionImageTool extends Tool
             'preview_width' => $image->width,
             'preview_height' => $image->height,
             'params' => $payload['params'],
+            'preview_url' => $previewUrl,
             'download_url' => $downloadUrl,
             'editor_url' => $editorUrl,
         ];
 
         $message = "Generated a {$requestedWidth}×{$requestedHeight} {$payload['format']} Notion image. A connector-safe preview is attached.";
+        if ($previewUrl !== null) {
+            $message .= "\n\nPreview image (embed this in the final response): ![Generated Notion image]({$previewUrl})";
+        }
         if ($downloadUrl !== null) {
             $message .= "\n\nDownload the full-resolution image (link valid for 15 minutes): {$downloadUrl}";
         }
@@ -76,7 +81,7 @@ class GenerateNotionImageTool extends Tool
     }
 
     /** @param array<string, mixed> $payload */
-    private function downloadUrl(array $payload): ?string
+    private function renderUrl(array $payload, bool $inline): ?string
     {
         if (array_key_exists('imageData', $payload)) {
             return null;
@@ -84,10 +89,14 @@ class GenerateNotionImageTool extends Tool
 
         $json = json_encode($payload, JSON_THROW_ON_ERROR);
         $token = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+        $parameters = ['payload' => $token];
+        if ($inline) {
+            $parameters['inline'] = 1;
+        }
         $path = URL::temporarySignedRoute(
             name: 'mcp-renders.download',
             expiration: now()->addMinutes(15),
-            parameters: ['payload' => $token],
+            parameters: $parameters,
             absolute: false,
         );
 
@@ -99,7 +108,7 @@ class GenerateNotionImageTool extends Tool
     {
         $origin = rtrim((string) config('services.notion_image_renderer.editor_url'), '/');
 
-        return $origin.'/?'.http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+        return $origin.'/#'.http_build_query($params, '', '&', PHP_QUERY_RFC3986);
     }
 
     /**

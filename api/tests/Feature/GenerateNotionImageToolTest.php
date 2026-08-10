@@ -52,8 +52,9 @@ class GenerateNotionImageToolTest extends TestCase
                 ->where('params.backgroundLayer', 'pattern')
                 ->where('params.backgroundPatternMode', 'drift')
                 ->where('params.backgroundPatternSeed', 73)
+                ->whereType('preview_url', 'string')
                 ->whereType('download_url', 'string')
-                ->whereType('editor_url', 'string')
+                ->where('editor_url', fn (string $url): bool => str_starts_with($url, 'https://notion-images.laravel.cloud/#'))
                 ->etc());
 
         Http::assertSent(fn (HttpRequest $request): bool => $request['width'] === 224

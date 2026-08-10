@@ -57,6 +57,38 @@ class McpRenderDownloadTest extends TestCase
         $this->get("/mcp/renders/{$payload}")->assertForbidden();
     }
 
+    public function test_a_signed_preview_is_served_inline(): void
+    {
+        config(['services.notion_image_renderer.url' => 'https://renderer.test']);
+        Http::fake([
+            'renderer.test/api/render' => Http::response('preview-png-bytes', 200, [
+                'Content-Type' => 'image/png',
+                'X-Render-Format' => 'png',
+                'X-Render-Width' => '224',
+                'X-Render-Height' => '90',
+            ]),
+        ]);
+
+        $payload = $this->encode([
+            'format' => 'png',
+            'width' => 224,
+            'compact' => true,
+            'params' => ['surface' => 'letters', 'text' => 'PLATFORM', 'aspect' => 2.5],
+        ]);
+        $url = URL::temporarySignedRoute(
+            name: 'mcp-renders.download',
+            expiration: now()->addMinutes(15),
+            parameters: ['payload' => $payload, 'inline' => 1],
+            absolute: false,
+        );
+
+        $this->get($url)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertHeader('Content-Disposition', 'inline; filename="notion-image.png"')
+            ->assertContent('preview-png-bytes');
+    }
+
     public function test_the_api_exposes_the_generator_favicon(): void
     {
         $this->get('/favicon.ico')

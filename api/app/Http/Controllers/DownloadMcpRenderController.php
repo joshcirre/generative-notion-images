@@ -3,11 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Services\NotionImageRenderer;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class DownloadMcpRenderController extends Controller
 {
-    public function __invoke(string $payload, NotionImageRenderer $renderer): Response
+    public function __invoke(Request $request, string $payload, NotionImageRenderer $renderer): Response
     {
         $encoded = strtr($payload, '-_', '+/');
         $encoded .= str_repeat('=', (4 - strlen($encoded) % 4) % 4);
@@ -22,10 +23,11 @@ class DownloadMcpRenderController extends Controller
 
         $image = $renderer->render($renderPayload);
         $extension = $image->format === 'svg' ? 'svg' : 'png';
+        $disposition = $request->boolean('inline') ? 'inline' : 'attachment';
 
         return response($image->contents, 200, [
             'Content-Type' => $image->mimeType,
-            'Content-Disposition' => "attachment; filename=\"notion-image.{$extension}\"",
+            'Content-Disposition' => "{$disposition}; filename=\"notion-image.{$extension}\"",
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
         ]);
