@@ -45,10 +45,6 @@ export function AgentConnectDialog({
               IO
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mb-1 flex items-center gap-2 font-device text-[9px] tracking-[0.18em] text-muted uppercase">
-                <span className="size-1.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                Public MCP · no API key
-              </div>
               <h2 id="agent-dialog-title" className="font-pixel text-sm tracking-[0.1em] text-ink uppercase sm:text-base">
                 Connect Notion Images
               </h2>
