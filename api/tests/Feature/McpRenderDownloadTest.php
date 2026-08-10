@@ -60,12 +60,10 @@ class McpRenderDownloadTest extends TestCase
     public function test_the_api_exposes_the_generator_favicon(): void
     {
         $this->get('/favicon.ico')
-            ->assertOk()
-            ->assertHeader('Content-Type', 'image/png');
+            ->assertRedirect('https://notion-images.laravel.cloud/generative-design-ico.png');
 
         $this->get('/generative-design-ico.svg')
-            ->assertOk()
-            ->assertHeader('Content-Type', 'image/svg+xml');
+            ->assertRedirect('https://notion-images.laravel.cloud/generative-design-ico.svg');
     }
 
     /** @param array<string, mixed> $payload */

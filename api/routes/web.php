@@ -11,19 +11,8 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/favicon.ico', function () {
-    return response()->file(base_path('../public/generative-design-ico.png'), [
-        'Content-Type' => 'image/png',
-        'Cache-Control' => 'public, max-age=86400',
-    ]);
-});
-
-Route::get('/generative-design-ico.svg', function () {
-    return response()->file(base_path('../public/generative-design-ico.svg'), [
-        'Content-Type' => 'image/svg+xml',
-        'Cache-Control' => 'public, max-age=86400',
-    ]);
-});
+Route::redirect('/favicon.ico', 'https://notion-images.laravel.cloud/generative-design-ico.png');
+Route::redirect('/generative-design-ico.svg', 'https://notion-images.laravel.cloud/generative-design-ico.svg');
 
 Route::get('/mcp/renders/{payload}', DownloadMcpRenderController::class)
     ->middleware(['signed:relative', 'throttle:public-mcp-downloads'])
