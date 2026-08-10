@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mcp\Servers\NotionImageServer;
 use App\Mcp\Tools\GenerateNotionImageTool;
 use App\Support\RenderInput;
+use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Testing\Fluent\AssertableJson;
@@ -22,8 +23,8 @@ class GenerateNotionImageToolTest extends TestCase
             'renderer.test/api/render' => Http::response('png-bytes', 200, [
                 'Content-Type' => 'image/png',
                 'X-Render-Format' => 'png',
-                'X-Render-Width' => '1024',
-                'X-Render-Height' => '1024',
+                'X-Render-Width' => '224',
+                'X-Render-Height' => '224',
             ]),
         ]);
 
@@ -41,6 +42,8 @@ class GenerateNotionImageToolTest extends TestCase
                 ->where('format', 'png')
                 ->where('width', 1024)
                 ->where('height', 1024)
+                ->where('preview_width', 224)
+                ->where('preview_height', 224)
                 ->where('params.surface', 'letters')
                 ->where('params.text', 'ARCH')
                 ->where('params.baseline', 'grid')
@@ -49,7 +52,13 @@ class GenerateNotionImageToolTest extends TestCase
                 ->where('params.backgroundLayer', 'pattern')
                 ->where('params.backgroundPatternMode', 'drift')
                 ->where('params.backgroundPatternSeed', 73)
+                ->whereType('download_url', 'string')
+                ->whereType('editor_url', 'string')
                 ->etc());
+
+        Http::assertSent(fn (HttpRequest $request): bool => $request['width'] === 224
+            && $request['format'] === 'png'
+            && $request['compact'] === true);
     }
 
     public function test_source_image_and_audio_inputs_are_mutually_exclusive(): void

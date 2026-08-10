@@ -9,6 +9,8 @@ export type RenderRequest = {
   format?: 'svg' | 'png'
   width?: number
   params?: Partial<Params>
+  /** Quantize PNG output for small inline MCP previews. */
+  compact?: boolean
   /** Raw base64 or a data:image URL. Kept outside Params so URLs stay small. */
   imageData?: string
 }
@@ -47,10 +49,13 @@ export async function renderImage(request: RenderRequest = {}): Promise<Rendered
     }
   }
 
-  const png = new Resvg(svg, {
+  const renderedPng = new Resvg(svg, {
     fitTo: { mode: 'width', value: width },
     background: scene.params.backdrop === 'none' ? undefined : scene.params.bg1,
   }).render().asPng()
+  const png = request.compact
+    ? await sharp(renderedPng).png({ compressionLevel: 9, palette: true, quality: 100, effort: 3 }).toBuffer()
+    : renderedPng
 
   return {
     body: png,

@@ -32,6 +32,18 @@ test('renders PNG bytes and rejects image surfaces without source pixels', async
   )
 })
 
+test('compacts PNG output for connector-safe inline previews', async () => {
+  const request = {
+    format: 'png', width: 224,
+    params: { surface: 'letters', text: 'PLATFORM', baseline: 'flat', backgroundLayer: 'both' },
+  }
+  const regular = await renderImage(request)
+  const compact = await renderImage({ ...request, compact: true })
+
+  assert.deepEqual([...compact.body.slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10])
+  assert.ok(compact.body.byteLength < regular.body.byteLength)
+})
+
 test('converts uploaded image bytes into an isometric mosaic', async () => {
   // A tiny opaque PNG is sufficient to exercise decoding and the image plotter.
   const image = await renderImage({

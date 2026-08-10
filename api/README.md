@@ -134,6 +134,12 @@ It exposes one tool:
 generate-notion-image
 ```
 
+The MCP tool returns a compact inline PNG preview so hosted connector clients
+stay below their tool-result limits. For renders that do not contain uploaded
+source-image bytes, it also returns a signed full-resolution download URL that
+expires after 15 minutes and a permanent editor URL. The download is rendered
+on demand; no database or storage bucket is required.
+
 The agent translates ordinary visual direction into the tool's design fields.
 An attached PNG, JPEG, WebP, or SVG can be sent as `image_data` for a true
 shade-to-isometric mosaic. The source is limited, decoded in memory, and never

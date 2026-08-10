@@ -38,5 +38,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) config('services.agent_api.mcp_rate_limit', 10))
                 ->by(hash('sha256', (string) $request->ip()));
         });
+
+        RateLimiter::for('public-mcp-downloads', function (Request $request): Limit {
+            return Limit::perMinute((int) config('services.agent_api.mcp_rate_limit', 10))
+                ->by(hash('sha256', (string) $request->ip()));
+        });
     }
 }

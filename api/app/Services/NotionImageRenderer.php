@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 class NotionImageRenderer
 {
     /**
-     * @param  array{format: string, width: int, params: array<string, mixed>, imageData?: string}  $payload
+     * @param  array{format: string, width: int, params: array<string, mixed>, compact?: bool, imageData?: string}  $payload
      */
     public function render(array $payload): RenderedImage
     {

@@ -8,6 +8,7 @@ use App\Services\RenderRequestFactory;
 use App\Support\RenderInput;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
+use Illuminate\Support\Facades\URL;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -19,6 +20,8 @@ use Laravel\Mcp\Server\Tool;
 #[Description('Generate a PNG or SVG isometric Notion cover or icon. Translate the user’s natural-language art direction into reproducible letter, pattern, text-signal, or voice-signal parameters.')]
 class GenerateNotionImageTool extends Tool
 {
+    private const PREVIEW_WIDTH = 224;
+
     /**
      * Handle the tool request.
      */
@@ -29,23 +32,74 @@ class GenerateNotionImageTool extends Tool
     ): ResponseFactory {
         $input = $request->validate(RenderInput::publicMcpRules());
         $payload = $factory->make($input);
+        $requestedWidth = $payload['width'];
+        $requestedHeight = (int) round($requestedWidth / (float) ($payload['params']['aspect'] ?? 2.5));
+        $previewPayload = [
+            ...$payload,
+            'format' => 'png',
+            'width' => min(self::PREVIEW_WIDTH, $requestedWidth),
+            'compact' => true,
+        ];
+
         try {
-            $image = $renderer->render($payload);
+            $image = $renderer->render($previewPayload);
         } catch (RendererException $exception) {
             return Response::make(Response::error($exception->getMessage()));
         }
+
+        $downloadUrl = $this->downloadUrl($payload);
+        $editorUrl = array_key_exists('imageData', $payload) ? null : $this->editorUrl($payload['params']);
         $metadata = [
-            'format' => $image->format,
-            'mime_type' => $image->mimeType,
-            'width' => $image->width,
-            'height' => $image->height,
+            'format' => $payload['format'],
+            'mime_type' => $payload['format'] === 'svg' ? 'image/svg+xml' : 'image/png',
+            'width' => $requestedWidth,
+            'height' => $requestedHeight,
+            'preview_width' => $image->width,
+            'preview_height' => $image->height,
             'params' => $payload['params'],
+            'download_url' => $downloadUrl,
+            'editor_url' => $editorUrl,
         ];
+
+        $message = "Generated a {$requestedWidth}×{$requestedHeight} {$payload['format']} Notion image. A connector-safe preview is attached.";
+        if ($downloadUrl !== null) {
+            $message .= "\n\nDownload the full-resolution image (link valid for 15 minutes): {$downloadUrl}";
+        }
+        if ($editorUrl !== null) {
+            $message .= "\n\nOpen the design in the generator: {$editorUrl}";
+        }
 
         return Response::make([
             Response::image($image->contents, $image->mimeType),
-            Response::text("Generated a {$image->width}×{$image->height} {$image->format} Notion image."),
+            Response::text($message),
         ])->withStructuredContent($metadata);
+    }
+
+    /** @param array<string, mixed> $payload */
+    private function downloadUrl(array $payload): ?string
+    {
+        if (array_key_exists('imageData', $payload)) {
+            return null;
+        }
+
+        $json = json_encode($payload, JSON_THROW_ON_ERROR);
+        $token = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+        $path = URL::temporarySignedRoute(
+            name: 'mcp-renders.download',
+            expiration: now()->addMinutes(15),
+            parameters: ['payload' => $token],
+            absolute: false,
+        );
+
+        return request()->getSchemeAndHttpHost().$path;
+    }
+
+    /** @param array<string, mixed> $params */
+    private function editorUrl(array $params): string
+    {
+        $origin = rtrim((string) config('services.notion_image_renderer.editor_url'), '/');
+
+        return $origin.'/?'.http_build_query($params, '', '&', PHP_QUERY_RFC3986);
     }
 
     /**
@@ -59,7 +113,7 @@ class GenerateNotionImageTool extends Tool
             'format' => $schema->string()->enum(RenderInput::FORMATS)->default('png')
                 ->description('Output format. PNG is best for direct use in Notion.'),
             'width' => $schema->integer()->min(128)->max(2048)->default(1500)
-                ->description('Output width in pixels. Height follows the scene aspect ratio.'),
+                ->description('Full-resolution output width. The MCP result includes a small inline preview and a temporary full-resolution download link.'),
             'text' => $schema->string()->max(48)
                 ->description('Text built from isometric blocks. Use the header layout for a wide wordmark.'),
             'layout' => $schema->string()->enum(RenderInput::LAYOUTS)->default('header')

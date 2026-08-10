@@ -136,6 +136,7 @@ test('Laravel exposes public MCP media rendering and protects REST', async t => 
     const imageContent = toolResult.result?.content?.find(content => content.type === 'image')
     assert.equal(toolCall.status, 200)
     assert.equal(imageContent?.mimeType, 'image/png', JSON.stringify(toolResult))
+    assert.ok(imageContent.data.length < 30_000, 'MCP preview must stay below connector result limits')
     assert.deepEqual(
       [...Buffer.from(imageContent.data, 'base64').subarray(0, 8)],
       [137, 80, 78, 71, 13, 10, 26, 10],

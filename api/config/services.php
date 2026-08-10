@@ -10,6 +10,7 @@ return [
 
     'notion_image_renderer' => [
         'url' => env('RENDERER_URL', 'http://127.0.0.1:8080'),
+        'editor_url' => env('EDITOR_URL', 'https://notion-images.laravel.cloud'),
         'token' => env('RENDERER_TOKEN'),
         'timeout' => (int) env('RENDERER_TIMEOUT', 30),
     ],
