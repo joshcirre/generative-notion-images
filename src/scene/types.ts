@@ -95,8 +95,14 @@ export type Params = {
   seam: number
   seamStyle: SeamStyle
   bevel: number        // highlight along the top edge of each block
-  grain: number        // film-grain overlay
+  grain: number        // canvas noise overlay (kept as grain for URL compatibility)
   occlusion: number    // darkening down the side faces, like light falling off
+
+  // Canvas-level finishing filters shared by every surface.
+  glass: number        // refracted-glass displacement strength
+  glassScale: number   // size of the glass distortion cells
+  vignette: number     // edge darkening
+  vignetteBlur: number // artwork softness toward the perimeter
 
   // color
   palette: Palette
@@ -163,6 +169,7 @@ export const DEFAULTS: Params = {
   tilt: 30, stretch: 100, gap: 0, seam: 1.5, seamStyle: 'cut',
   // Ship with some material depth: flat fills read as a diagram, not a design.
   bevel: 0, grain: 18, occlusion: 38,
+  glass: 0, glassScale: 42, vignette: 0, vignetteBlur: 0,
 
   palette: 'ramp',
   colorA: '#ec8f7a', colorMid: '#f53003', colorB: '#c42602', useMid: 1,
@@ -209,6 +216,7 @@ export const LIMITS: Partial<Record<keyof Params, [number, number]>> = {
   steps: [0, 8], floaters: [0, 24],
   tilt: [12, 45], stretch: [30, 220], gap: [0, 60], seam: [0, 6],
   bevel: [0, 100], grain: [0, 100], occlusion: [0, 100],
+  glass: [0, 100], glassScale: [0, 100], vignette: [0, 100], vignetteBlur: [0, 100],
   curve: [20, 320], hueShift: [-180, 180], saturation: [0, 200],
   light: [0, 360], contrast: [0, 220],
   aspect: [1, 6], zoom: [25, 400], bgAngle: [0, 360], inset: [0, 20], frame: [0, 12],

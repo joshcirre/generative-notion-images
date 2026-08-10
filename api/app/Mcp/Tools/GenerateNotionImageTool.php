@@ -171,6 +171,16 @@ class GenerateNotionImageTool extends Tool
                 ->description('How far the edge pattern travels toward the clear center.'),
             'background_opacity' => $schema->number()->min(0)->max(100)->default(58)
                 ->description('Opacity of the background blocks without fading the foreground.'),
+            'noise' => $schema->number()->min(0)->max(100)->default(18)
+                ->description('Fine monochrome canvas noise. Use 0 for a clean vector finish.'),
+            'glass' => $schema->number()->min(0)->max(100)->default(0)
+                ->description('Refracted-glass displacement strength across the generated scene.'),
+            'glass_scale' => $schema->number()->min(0)->max(100)->default(42)
+                ->description('Size of the distortion cells used by the glass filter.'),
+            'vignette' => $schema->number()->min(0)->max(100)->default(0)
+                ->description('Soft edge darkening that draws attention toward the center.'),
+            'vignette_blur' => $schema->number()->min(0)->max(100)->default(0)
+                ->description('Progressively soften the generated artwork toward the canvas perimeter.'),
             'params' => $schema->object()
                 ->description('Advanced renderer parameter overrides using names from the generator URL and AGENTS.md.'),
         ];

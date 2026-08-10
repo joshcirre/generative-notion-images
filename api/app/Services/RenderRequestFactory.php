@@ -79,6 +79,19 @@ class RenderRequestFactory
             }
         }
 
+        $filters = [
+            'noise' => 'grain',
+            'glass' => 'glass',
+            'glass_scale' => 'glassScale',
+            'vignette' => 'vignette',
+            'vignette_blur' => 'vignetteBlur',
+        ];
+        foreach ($filters as $inputKey => $paramKey) {
+            if (array_key_exists($inputKey, $input)) {
+                $params[$paramKey] = $input[$inputKey];
+            }
+        }
+
         $params = [...$params, ...Arr::wrap($input['params'] ?? [])];
 
         $payload = [

@@ -56,6 +56,11 @@ final class RenderInput
             'background_warp' => ['sometimes', 'numeric', 'between:0,100'],
             'background_reach' => ['sometimes', 'numeric', 'between:5,85'],
             'background_opacity' => ['sometimes', 'numeric', 'between:0,100'],
+            'noise' => ['sometimes', 'numeric', 'between:0,100'],
+            'glass' => ['sometimes', 'numeric', 'between:0,100'],
+            'glass_scale' => ['sometimes', 'numeric', 'between:0,100'],
+            'vignette' => ['sometimes', 'numeric', 'between:0,100'],
+            'vignette_blur' => ['sometimes', 'numeric', 'between:0,100'],
             'params' => ['sometimes', 'array'],
             // Fail loudly for the short-lived overlay API instead of silently
             // returning an image that omits the caller's requested content.

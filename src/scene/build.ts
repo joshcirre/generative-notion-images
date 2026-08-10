@@ -655,6 +655,7 @@ function assemble(polys: Poly[], p: Params, view: Rect, backgroundPolys: Poly[] 
   const { x, y, w, h } = view
   const defs: string[] = []
   const body: string[] = []
+  const scene: string[] = []
 
   if (p.backdrop === 'solid') {
     body.push(`<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="${p.bg1}"/>`)
@@ -685,7 +686,7 @@ function assemble(polys: Poly[], p: Params, view: Rect, backgroundPolys: Poly[] 
       `<stop offset="1" stop-color="#fff"/></linearGradient>`,
       `<mask id="grid-mask"><rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#grid-fade)"/></mask>`,
     )
-    body.push(
+    scene.push(
       `<g opacity="${r1(p.gridOpacity / 100)}" mask="url(#grid-mask)">` +
       `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#grid-a)"/>` +
       `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#grid-b)"/></g>`,
@@ -727,20 +728,76 @@ function assemble(polys: Poly[], p: Params, view: Rect, backgroundPolys: Poly[] 
   const inner = { x: x + pad, y: y + pad, w: w - pad * 2, h: h - pad * 2 }
   if (pad > 0) {
     defs.push(`<clipPath id="mat"><rect x="${r1(inner.x)}" y="${r1(inner.y)}" width="${r1(inner.w)}" height="${r1(inner.h)}"/></clipPath>`)
-    body.push(`<g clip-path="url(#mat)">${art}</g>`)
+    scene.push(`<g clip-path="url(#mat)">${art}</g>`)
   } else {
-    body.push(art)
+    scene.push(art)
+  }
+
+  // Filters alter the generated scene but leave the backdrop and frame crisp.
+  // That makes edge blur read as depth instead of softening the exported crop.
+  let filteredScene = scene.join('')
+  if (p.glass > 0) {
+    const frequency = 0.04 + (p.glassScale / 100) * 0.36
+    const displacement = h * (p.glass / 100) * 0.035
+    defs.push(
+      `<filter id="glass-filter" filterUnits="userSpaceOnUse" ` +
+      `x="${r1(x - w * 0.06)}" y="${r1(y - h * 0.12)}" width="${r1(w * 1.12)}" height="${r1(h * 1.24)}">` +
+      `<feTurbulence type="fractalNoise" baseFrequency="${r1(frequency)}" numOctaves="2" ` +
+      `seed="${Math.max(1, p.seed % 997)}" stitchTiles="stitch" result="glass-noise"/>` +
+      `<feGaussianBlur in="glass-noise" stdDeviation="${r1(h * 0.0025)}" result="soft-noise"/>` +
+      `<feDisplacementMap in="SourceGraphic" in2="soft-noise" scale="${r1(displacement)}" ` +
+      `xChannelSelector="R" yChannelSelector="G"/></filter>`,
+    )
+    filteredScene = `<g filter="url(#glass-filter)">${filteredScene}</g>`
+  }
+
+  if (p.vignetteBlur > 0) {
+    const edgeStart = 68 - (p.vignetteBlur / 100) * 18
+    const blur = h * (0.001 + (p.vignetteBlur / 100) * 0.022)
+    defs.push(
+      `<radialGradient id="edge-sharp-gradient">` +
+      `<stop offset="${r1(edgeStart)}%" stop-color="#fff"/>` +
+      `<stop offset="100%" stop-color="#000"/></radialGradient>`,
+      `<radialGradient id="edge-blur-gradient">` +
+      `<stop offset="${r1(edgeStart)}%" stop-color="#000"/>` +
+      `<stop offset="100%" stop-color="#fff"/></radialGradient>`,
+      `<mask id="edge-sharp-mask"><rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#edge-sharp-gradient)"/></mask>`,
+      `<mask id="edge-blur-mask"><rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" fill="url(#edge-blur-gradient)"/></mask>`,
+      `<filter id="edge-blur" filterUnits="userSpaceOnUse" ` +
+      `x="${r1(x - w * 0.06)}" y="${r1(y - h * 0.12)}" width="${r1(w * 1.12)}" height="${r1(h * 1.24)}">` +
+      `<feGaussianBlur stdDeviation="${r1(blur)}"/></filter>`,
+    )
+    body.push(
+      `<g mask="url(#edge-sharp-mask)">${filteredScene}</g>` +
+      `<g mask="url(#edge-blur-mask)" filter="url(#edge-blur)">${filteredScene}</g>`,
+    )
+  } else {
+    body.push(filteredScene)
   }
 
   if (p.grain > 0) {
     defs.push(
       `<filter id="grain" x="0" y="0" width="100%" height="100%">` +
-      `<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/>` +
+      `<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" ` +
+      `seed="${Math.max(1, (p.seed + 37) % 997)}" stitchTiles="stitch"/>` +
       `<feColorMatrix type="saturate" values="0"/></filter>`)
     body.push(
       `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" ` +
       `filter="url(#grain)" opacity="${r1((p.grain / 100) * 0.42)}" ` +
       `style="mix-blend-mode:multiply" pointer-events="none"/>`)
+  }
+  if (p.vignette > 0) {
+    defs.push(
+      `<radialGradient id="canvas-vignette">` +
+      `<stop offset="44%" stop-color="#15110f" stop-opacity="0"/>` +
+      `<stop offset="78%" stop-color="#15110f" stop-opacity="${r1((p.vignette / 100) * 0.12)}"/>` +
+      `<stop offset="100%" stop-color="#15110f" stop-opacity="${r1((p.vignette / 100) * 0.68)}"/>` +
+      `</radialGradient>`,
+    )
+    body.push(
+      `<rect x="${r1(x)}" y="${r1(y)}" width="${r1(w)}" height="${r1(h)}" ` +
+      `fill="url(#canvas-vignette)" style="mix-blend-mode:multiply" pointer-events="none"/>`,
+    )
   }
   if (p.frame > 0) {
     const half = p.frame / 2

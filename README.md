@@ -149,10 +149,11 @@ Grouped the way the panel groups them.
   detail, octaves, warp (domain warping), jitter, steps (height quantization),
   floaters
 - **Form & material** — tilt (isometric angle), stretch, gap, seam width and
-  style (`cut` / `light` / `dark` / `none`), occlusion, bevel, grain
+  style (`cut` / `light` / `dark` / `none`), occlusion, bevel
 - **Color** — 12 ramps, palette mode (`ramp` / `duotone` / `banded` / `dither` / `scatter`),
   ground / mid / peak stops, ramp curve, hue drift, saturation, light angle,
   face contrast
+- **Filters** — noise, refracted glass and glass scale, soft vignette, edge blur
 - **Canvas** — format (header / icon), zoom, backdrop mode and gradient angle,
   background layer (`none` / `grid` / `pattern` / `both`), edge-pattern controls,
   skewable/fadeable grid, inset, frame, nudge

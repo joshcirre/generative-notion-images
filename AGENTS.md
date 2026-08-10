@@ -147,7 +147,8 @@ Drop `--png` to write SVG. Use `--width N` to choose output width; height follow
 | Composition | `surface`, `mode`, `shape`, `seed`, `grid`, `height`, `coverage` |
 | Letter content | `surface=letters`, `text`, `baseline`, `run`, `tracking`, `fit` |
 | Block geometry | `tilt`, `stretch`, `gap`, `depth`, `seam`, `seamStyle` |
-| Material | `occlusion`, `bevel`, `grain`, `light`, `contrast` |
+| Material | `occlusion`, `bevel`, `light`, `contrast` |
+| Canvas filters | `grain` (noise), `glass`, `glassScale`, `vignette`, `vignetteBlur` |
 | Color | `palette`, `colorA`, `colorMid`, `colorB`, `useMid`, `bg1`, `bg2` |
 | Background selection | `backgroundLayer=none|grid|pattern|both` |
 | Edge pattern | `backgroundPatternMode`, `backgroundPatternSeed`, `backgroundPatternGrid`, `backgroundPatternHeight`, `backgroundPatternCoverage`, `backgroundPatternDetail`, `backgroundPatternWarp`, `backgroundPatternReach`, `backgroundPatternOpacity` |
@@ -162,6 +163,11 @@ For a letter header, start with `backgroundLayer=pattern`, `baseline=flat`, a
 pattern height of 1–3, coverage around 40–55, and reach around 25–35. Change
 `backgroundPatternSeed` to shuffle only the background without moving the
 letters. Use `backgroundLayer=both` to add the drafting grid beneath it.
+
+Filters are independent of the surface and background. Start subtle: `grain`
+15–30, `glass` 8–24, `vignette` 10–30, or `vignetteBlur` 6–18. `glassScale`
+changes the size of the refraction cells. In the public MCP vocabulary these are
+`noise`, `glass`, `glass_scale`, `vignette`, and `vignette_blur`.
 
 Use `npm run generate -- --help` for every accepted parameter. The URL and CLI
 use the same names as `Params` in `src/scene/types.ts`.

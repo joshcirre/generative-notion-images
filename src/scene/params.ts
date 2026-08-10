@@ -138,6 +138,10 @@ export function randomize(seed: number, surface: Surface = 'pattern'): Params {
     bevel: rand() < 0.3 ? near(45, 30, 10, 90) : 0,
     grain: rand() < 0.45 ? near(35, 25, 8, 70) : 0,
     occlusion: rand() < 0.55 ? near(45, 30, 10, 90) : 0,
+    glass: rand() < 0.18 ? near(20, 14, 5, 48) : 0,
+    glassScale: near(42, 24, 8, 88),
+    vignette: rand() < 0.26 ? near(24, 16, 5, 58) : 0,
+    vignetteBlur: rand() < 0.2 ? near(22, 14, 5, 52) : 0,
 
     palette: rand() < 0.68 ? 'ramp' : pick(['duotone', 'banded', 'dither', 'scatter'] as const),
     colorA: ramp.a, colorMid: ramp.mid, colorB: ramp.b,

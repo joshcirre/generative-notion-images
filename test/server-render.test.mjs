@@ -32,6 +32,24 @@ test('renders PNG bytes and rejects image surfaces without source pixels', async
   )
 })
 
+test('renders canvas filters as deterministic SVG treatments', async () => {
+  const image = await renderImage({
+    format: 'svg',
+    width: 1500,
+    params: {
+      surface: 'letters', text: 'GLASS', baseline: 'flat', seed: 52,
+      grain: 30, glass: 24, glassScale: 58, vignette: 32, vignetteBlur: 18,
+    },
+  })
+
+  const svg = new TextDecoder().decode(image.body)
+  assert.match(svg, /id="glass-filter"/)
+  assert.match(svg, /id="edge-blur"/)
+  assert.match(svg, /id="canvas-vignette"/)
+  assert.match(svg, /id="grain"/)
+  assert.equal(image.params.glassScale, 58)
+})
+
 test('compacts PNG output for connector-safe inline previews', async () => {
   const request = {
     format: 'png', width: 224,

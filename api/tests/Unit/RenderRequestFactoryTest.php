@@ -41,6 +41,23 @@ class RenderRequestFactoryTest extends TestCase
         $this->assertSame(18, $payload['params']['backgroundPatternReach']);
     }
 
+    public function test_canvas_filters_translate_to_renderer_params(): void
+    {
+        $payload = (new RenderRequestFactory)->make([
+            'noise' => 28,
+            'glass' => 16,
+            'glass_scale' => 60,
+            'vignette' => 22,
+            'vignette_blur' => 12,
+        ]);
+
+        $this->assertSame(28, $payload['params']['grain']);
+        $this->assertSame(16, $payload['params']['glass']);
+        $this->assertSame(60, $payload['params']['glassScale']);
+        $this->assertSame(22, $payload['params']['vignette']);
+        $this->assertSame(12, $payload['params']['vignetteBlur']);
+    }
+
     public function test_image_data_selects_the_image_surface_and_stays_outside_params(): void
     {
         $payload = (new RenderRequestFactory)->make([

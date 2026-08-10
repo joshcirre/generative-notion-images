@@ -345,7 +345,6 @@ export default function App() {
                 <Segmented label="Seam style" value={params.seamStyle} options={SEAMS} onChange={v => set('seamStyle', v)} columns={4} />
                 <BracketSlider label="Occlusion" value={params.occlusion} onChange={v => set('occlusion', v)} min={0} max={100} format={pct} />
                 <BracketSlider label="Bevel" value={params.bevel} onChange={v => set('bevel', v)} min={0} max={100} format={pct} />
-                <BracketSlider label="Grain" value={params.grain} onChange={v => set('grain', v)} min={0} max={100} format={pct} />
               </Rack>
 
                 </div>
@@ -382,6 +381,20 @@ export default function App() {
                   <Scrub label="Light" value={params.light} onChange={v => set('light', v)} min={0} max={360} unit="°" />
                 </div>
                 <BracketSlider label="Face contrast" value={params.contrast} onChange={v => set('contrast', v)} min={0} max={220} format={pct} />
+              </Rack>
+
+              {/* ---- filters --------------------------------------------- */}
+              <Rack label="Filters">
+                <p className="font-device text-[10px] leading-relaxed text-muted">
+                  Finishing treatments apply across every surface and stay reproducible in shared links.
+                </p>
+                <BracketSlider label="Noise" value={params.grain} onChange={v => set('grain', v)} min={0} max={100} format={pct} />
+                <BracketSlider label="Glass" value={params.glass} onChange={v => set('glass', v)} min={0} max={100} format={pct} />
+                {params.glass > 0 ? (
+                  <BracketSlider label="Glass scale" value={params.glassScale} onChange={v => set('glassScale', v)} min={0} max={100} format={pct} />
+                ) : null}
+                <BracketSlider label="Vignette" value={params.vignette} onChange={v => set('vignette', v)} min={0} max={100} format={pct} />
+                <BracketSlider label="Edge blur" value={params.vignetteBlur} onChange={v => set('vignetteBlur', v)} min={0} max={100} format={pct} />
               </Rack>
 
               {/* ---- canvas ------------------------------------------------ */}
